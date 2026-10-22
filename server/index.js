@@ -693,8 +693,10 @@ app.post('/api/convert', async (req, res) => {
     }
 
     const startTime = Math.max(0, parseFloat(start));
-    const endTime = Math.max(startTime + 1, parseFloat(end));
-    const duration = endTime - startTime;
+    const rawEnd = Math.max(startTime + 1, parseFloat(end));
+    // Strictly cap ringtone duration to <= 29.9s for Apple iOS standard compatibility
+    const duration = Math.min(29.9, rawEnd - startTime);
+    const endTime = startTime + duration;
 
     // Build audio filter chain
     const filterParts = [];
