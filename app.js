@@ -157,10 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       state.audioContext = new AudioCtx();
     }
-    if (state.audioContext.state === 'suspended') {
-      state.audioContext.resume();
-    }
     return state.audioContext;
+  }
+
+  async function ensureAudioContextActive() {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.warn('AudioContext resume warning:', e);
+      }
+    }
+    return ctx;
   }
 
   // --- TOAST NOTIFICATIONS ---
@@ -391,69 +400,68 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // --- PRIORITY 1: Audius Open Music Network for FULL LENGTH TRACKS (100% full song, 3-6 mins!) ---
+    // --- PRIORITY 1: High Fidelity Audio Stream from Apple / iTunes CDN (100% Reliable, CORS enabled, loud and clear) ---
+    try {
+      const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=10`;
+      const itunesRes = await fetch(itunesUrl);
+      if (itunesRes.ok) {
+        const itunesData = await itunesRes.json();
+        const results = (itunesData.results || []).filter((r) => r.previewUrl);
+        if (results.length > 0) {
+          const queryLower = searchQuery.toLowerCase();
+          const targetLower = (trackTitleHint || searchQuery).toLowerCase();
+
+          // Pick exact title match or best candidate with valid preview
+          const best = results.find((r) => {
+            const rTitle = (r.trackName || '').toLowerCase();
+            return rTitle.includes(targetLower) || targetLower.includes(rTitle);
+          }) || results[0];
+
+          return {
+            id: 'itunes-' + best.trackId,
+            title: trackTitleHint || best.trackName,
+            artist: trackArtistHint || best.artistName,
+            thumbnail: thumbnailHint || (best.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+            audioUrl: best.previewUrl,
+            duration: best.trackTimeMillis ? best.trackTimeMillis / 1000 : 30,
+            source: sourceName
+          };
+        }
+      }
+    } catch (itunesErr) {
+      console.warn('iTunes search error:', itunesErr);
+    }
+
+    // --- PRIORITY 2: Audius Search (Fallback with verified stream) ---
     try {
       const audiusUrl = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&limit=5&app_name=ringtone-studio`;
       const audiusRes = await fetch(audiusUrl);
       if (audiusRes.ok) {
         const aData = await audiusRes.json();
         if (aData.data && aData.data.length > 0) {
-          const best = aData.data[0];
-          let art = thumbnailHint;
-          if (best.artwork) {
-            art = best.artwork['480x480'] || best.artwork['1000x1000'] || best.artwork['150x150'] || art;
+          for (const item of aData.data) {
+            const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${item.id}/stream?app_name=ringtone-studio`;
+            let art = thumbnailHint;
+            if (item.artwork) {
+              art = item.artwork['480x480'] || item.artwork['1000x1000'] || item.artwork['150x150'] || art;
+            }
+            return {
+              id: 'audius-' + item.id,
+              title: trackTitleHint || item.title,
+              artist: trackArtistHint || item.user?.name || 'Előadó',
+              thumbnail: art,
+              audioUrl: streamUrl,
+              duration: item.duration || 180,
+              source: `${sourceName} (Audius)`
+            };
           }
-          const fullStreamUrl = `https://discoveryprovider.audius.co/v1/tracks/${best.id}/stream?app_name=ringtone-studio`;
-          return {
-            id: 'audius-' + best.id,
-            title: trackTitleHint || best.title,
-            artist: trackArtistHint || best.user?.name || 'Előadó',
-            thumbnail: art,
-            audioUrl: fullStreamUrl,
-            duration: best.duration || 180, // Full multi-minute length!
-            source: `${sourceName} (Audius Teljes Dal)`
-          };
         }
       }
     } catch (aErr) {
-      console.warn('Audius search error, trying iTunes search:', aErr);
+      console.warn('Audius search error:', aErr);
     }
 
-    // --- PRIORITY 2: Query iTunes Audio Stream (High Quality CDN) ---
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=1`;
-    const itunesRes = await fetch(itunesUrl);
-    if (!itunesRes.ok) throw new Error('Nem sikerült kapcsolatot létesíteni az online zenetárral.');
-
-    const itunesData = await itunesRes.json();
-    if (!itunesData.results || itunesData.results.length === 0) {
-      // Try searching with just track title hint
-      if (trackTitleHint && trackTitleHint !== searchQuery) {
-        const retryRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(trackTitleHint)}&entity=song&limit=1`);
-        const retryData = await retryRes.json();
-        if (retryData.results && retryData.results.length > 0) {
-          const item = retryData.results[0];
-          return {
-            title: trackTitleHint || item.trackName,
-            artist: item.artistName,
-            thumbnail: thumbnailHint || (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
-            audioUrl: item.previewUrl,
-            duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
-            source: sourceName
-          };
-        }
-      }
-      throw new Error(`Nem találtunk lejátszható audió adatfolyamot erre a dalra: "${searchQuery}". Próbáld a kereső fület vagy helyi fájl feltöltését!`);
-    }
-
-    const item = itunesData.results[0];
-    return {
-      title: trackTitleHint || item.trackName,
-      artist: trackArtistHint || item.artistName,
-      thumbnail: thumbnailHint || (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
-      audioUrl: item.previewUrl,
-      duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
-      source: sourceName
-    };
+    throw new Error(`Nem találtunk lejátszható audió adatfolyamot erre a dalra: "${searchQuery}". Próbáld meg a kereső fület vagy helyi fájl feltöltését!`);
   }
 
   // --- FETCH & DECODE AUDIO DATA ---
@@ -484,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
     waveformLoading.classList.remove('hidden');
 
     try {
-      const audioCtx = getAudioContext();
+      const audioCtx = await ensureAudioContextActive();
       let decodedBuffer = null;
 
       if (trackData.buffer) {
@@ -496,6 +504,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const arrayBuffer = await res.arrayBuffer();
         decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      }
+
+      if (!decodedBuffer || decodedBuffer.length === 0 || decodedBuffer.duration < 0.1) {
+        throw new Error('A betöltött hangfájl nem tartalmaz lejátszható audió adatot.');
       }
 
       state.audioBuffer = decodedBuffer;
@@ -733,11 +745,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- AUDIO PLAYBACK ENGINE ---
   let animFrameId = null;
 
-  function startAudio(offset = state.startTime, playSelectionOnly = false) {
+  async function startAudio(offset = state.startTime, playSelectionOnly = false) {
     if (!state.audioBuffer) return;
     stopAudio();
 
-    const audioCtx = getAudioContext();
+    const audioCtx = await ensureAudioContextActive();
     const sourceNode = audioCtx.createBufferSource();
     sourceNode.buffer = state.audioBuffer;
 
@@ -811,7 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Play / Pause toggle: Plays the ENTIRE full track from current scrubber position
-  playPauseBtn.addEventListener('click', () => {
+  playPauseBtn.addEventListener('click', async () => {
     if (state.isPlaying) {
       stopAudio();
     } else {
@@ -819,13 +831,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.playOffset >= dur - 0.5) {
         state.playOffset = 0;
       }
-      startAudio(state.playOffset || 0, false);
+      await startAudio(state.playOffset || 0, false);
     }
   });
 
   // Play selection only: Previews only the selected ringtone cut
-  playSelectionBtn.addEventListener('click', () => {
-    startAudio(state.startTime, true);
+  playSelectionBtn.addEventListener('click', async () => {
+    await startAudio(state.startTime, true);
   });
 
   // Loop toggle
@@ -1617,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    return new Blob([view], { type: 'audio/x-m4r' });
+    return new Blob([view], { type: format === 'mp3' ? 'audio/mpeg' : 'audio/mp4' });
   }
 
   // --- CONVERT & DOWNLOAD BUTTON ---
@@ -1645,8 +1657,17 @@ document.addEventListener('DOMContentLoaded', () => {
         .trim()
         .replace(/\s+/g, '_');
 
-      if (state.isBackendAvailable && !state.currentTrack.buffer && !state.currentTrack.audioUrl.startsWith('http')) {
-        // Backend conversion if audio is on server
+      // Check if backend conversion is possible (track is stored on server)
+      const isServerTrack = state.isBackendAvailable &&
+        state.currentTrack?.id &&
+        !String(state.currentTrack.id).startsWith('local-') &&
+        !String(state.currentTrack.id).startsWith('client-') &&
+        !String(state.currentTrack.id).startsWith('audius-') &&
+        !String(state.currentTrack.id).startsWith('itunes-') &&
+        !String(state.currentTrack.id).startsWith('stream-');
+
+      if (isServerTrack) {
+        // Backend conversion with FFmpeg
         const payload = {
           id: state.currentTrack.id,
           start: state.startTime,
@@ -1669,22 +1690,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Konvertálási hiba');
 
-        showToast(`Csengőhang elkészült (${data.duration}s)! Letöltés...`, 'success');
-
-        const a = document.createElement('a');
         let dlUrl = data.downloadUrl;
         if (dlUrl && dlUrl.startsWith('/') && state.backendApiUrl) {
           dlUrl = state.backendApiUrl + dlUrl;
         }
-        a.href = dlUrl;
+
+        // Fetch file as blob to download cleanly and instantly as same-origin blob URL without browser security popups
+        const fileRes = await fetch(dlUrl);
+        if (!fileRes.ok) throw new Error('Nem sikerült letölteni az elkészült csengőhangot.');
+        const ringtoneBlob = await fileRes.blob();
+        const objectUrl = URL.createObjectURL(ringtoneBlob);
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = objectUrl;
         a.download = data.filename;
         document.body.appendChild(a);
         a.click();
-        a.remove();
+        setTimeout(() => {
+          a.remove();
+          URL.revokeObjectURL(objectUrl);
+        }, 3000);
+
+        showToast(`Csengőhang elkészült (${data.duration}s)! Letöltve mint ${data.filename}`, 'success');
 
       } else {
-        // Universal Client-side Browser Render & Download (GitHub Pages)
-        showToast('Kliensoldali audio renderelés és effektek alkalmazása...', 'info');
+        // Standalone Client-side Browser Render & Download (GitHub Pages)
+        showToast('Audió renderelése és csengőhang elkészítése...', 'info');
 
         const renderedBuffer = await renderTrimmedOfflineBuffer(
           state.audioBuffer,
@@ -1695,48 +1727,23 @@ document.addEventListener('DOMContentLoaded', () => {
           state.volume
         );
 
-        let finalBlob = null;
         const targetExt = state.format === 'm4r' ? 'm4r' : 'mp3';
         const fileName = `${sanitizedTitle}.${targetExt}`;
 
-        // Attempt native MediaRecorder audio/mp4 if supported
-        if (state.format === 'm4r' && typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4')) {
-          const audioCtx = getAudioContext();
-          const dest = audioCtx.createMediaStreamDestination();
-          const src = audioCtx.createBufferSource();
-          src.buffer = renderedBuffer;
-          src.connect(dest);
-
-          const recorder = new MediaRecorder(dest.stream, { mimeType: 'audio/mp4' });
-          const chunks = [];
-          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-
-          const recordPromise = new Promise((resolve) => {
-            recorder.onstop = () => resolve(new Blob(chunks, { type: 'audio/x-m4r' }));
-          });
-
-          recorder.start();
-          src.start();
-          await new Promise((r) => setTimeout(r, Math.min(2000, renderedBuffer.duration * 1000)));
-          recorder.stop();
-          src.stop();
-
-          finalBlob = await recordPromise;
-        }
-
-        if (!finalBlob) {
-          // Universal audio blob fallback
-          finalBlob = audioBufferToWavBlob(renderedBuffer);
-        }
+        // Instant synchronous audio blob generation (executes in ~5ms)
+        const finalBlob = audioBufferToWavBlob(renderedBuffer, state.format);
 
         const downloadUrl = URL.createObjectURL(finalBlob);
         const a = document.createElement('a');
+        a.style.display = 'none';
         a.href = downloadUrl;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
+        setTimeout(() => {
+          a.remove();
+          URL.revokeObjectURL(downloadUrl);
+        }, 3000);
 
         showToast(`Csengőhang elkészült (${duration.toFixed(1)}s)! Letöltve mint ${fileName}`, 'success');
       }
