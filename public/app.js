@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('fileInput');
   const urlForm = document.getElementById('urlForm');
   const urlInput = document.getElementById('urlInput');
+  const clearUrlBtn = document.getElementById('clearUrlBtn');
   const urlSubmitBtn = document.getElementById('urlSubmitBtn');
 
   // Quick 1-click Chorus action elements
@@ -146,6 +147,97 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     return ctx;
+  }
+
+  // Robust audio decoder with timeout guard & Safari OfflineAudioContext fallback
+  async function safeDecodeAudioData(audioCtx, arrayBuffer) {
+    if (audioCtx.state === 'suspended') {
+      try {
+        await audioCtx.resume();
+      } catch (e) {
+        console.warn('AudioContext resume warning:', e);
+      }
+    }
+
+    // 1. Primary decode with slice(0) to prevent detached buffer errors and a 7-second timeout guard
+    const primaryDecode = new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('AudioContext dekódolási időtúllépés (Safari/WebKit védelem).'));
+        }
+      }, 7000);
+
+      try {
+        const copy = arrayBuffer.slice(0);
+        const ret = audioCtx.decodeAudioData(
+          copy,
+          (buf) => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              resolve(buf);
+            }
+          },
+          (err) => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              reject(err || new Error('Hiba a hangfájl dekódolásakor'));
+            }
+          }
+        );
+
+        if (ret && typeof ret.then === 'function') {
+          ret.then(
+            (buf) => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timeoutId);
+                resolve(buf);
+              }
+            },
+            (err) => {
+              if (!settled) {
+                settled = true;
+                clearTimeout(timeoutId);
+                reject(err);
+              }
+            }
+          );
+        }
+      } catch (e) {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          reject(e);
+        }
+      }
+    });
+
+    try {
+      return await primaryDecode;
+    } catch (err) {
+      console.warn('Primary decodeAudioData failed, attempting OfflineAudioContext fallback:', err);
+      // 2. Secondary fallback: OfflineAudioContext (bypasses Safari suspended AudioContext bug)
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (OfflineCtx) {
+        try {
+          const offlineCtx = new OfflineCtx(1, 44100, 44100);
+          return await new Promise((resolve, reject) => {
+            offlineCtx.decodeAudioData(
+              arrayBuffer.slice(0),
+              resolve,
+              reject
+            );
+          });
+        } catch (offlineErr) {
+          console.warn('OfflineAudioContext decode also failed:', offlineErr);
+        }
+      }
+      throw err;
+    }
   }
 
   // --- TOAST NOTIFICATIONS ---
@@ -472,10 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
         decodedBuffer = trackData.buffer;
       } else {
         const res = await fetch(trackData.audioUrl);
-        if (!res.ok) throw new Error('Nem sikerült letölteni az audió adatfolyamot.');
+        if (!res.ok) throw new Error(`Nem sikerült letölteni a hangfájlt (HTTP ${res.status}).`);
 
         const arrayBuffer = await res.arrayBuffer();
-        decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        decodedBuffer = await safeDecodeAudioData(audioCtx, arrayBuffer);
       }
 
       if (!decodedBuffer || decodedBuffer.length === 0 || decodedBuffer.duration < 0.1) {
@@ -1204,9 +1296,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Standalone browser decode mode
       try {
-        const audioCtx = getAudioContext();
+        const audioCtx = await ensureAudioContextActive();
         const arrayBuffer = await file.arrayBuffer();
-        const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const decodedBuffer = await safeDecodeAudioData(audioCtx, arrayBuffer);
 
         const trackData = {
           id: 'local-' + Date.now(),
@@ -1219,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', () => {
           thumbnail: null
         };
 
-        loadAudioIntoStudio(trackData);
+        await loadAudioIntoStudio(trackData);
       } catch (err) {
         console.error('Client file read error:', err);
         showToast('Hiba a fájl böngészős beolvasásakor: ' + err.message, 'error');
@@ -1227,9 +1319,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // --- CLEAR URL BUTTON HANDLER ---
+  if (clearUrlBtn) {
+    clearUrlBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      urlInput.focus();
+    });
+  }
+
   // --- LINK FORM RESOLVER (SPOTIFY / YOUTUBE / APPLE MUSIC) ---
   urlForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Immediately unlock AudioContext synchronously inside user click gesture!
+    ensureAudioContextActive();
+
     const url = urlInput.value.trim();
     if (!url) {
       showToast('Kérjük adj meg egy linket!', 'error');
@@ -1256,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.audioUrl.startsWith('/') && state.backendApiUrl) {
               data.audioUrl = state.backendApiUrl + data.audioUrl;
             }
-            loadAudioIntoStudio(data);
+            await loadAudioIntoStudio(data);
             return;
           }
         } catch (backendErr) {
@@ -1266,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 2. Universal Web Resolver (Runs directly on GitHub Pages with Audius full tracks!)
       const trackData = await resolveInBrowser(url);
-      loadAudioIntoStudio(trackData);
+      await loadAudioIntoStudio(trackData);
 
     } catch (err) {
       showToast(err.message, 'error');
@@ -1685,7 +1789,9 @@ document.addEventListener('DOMContentLoaded', () => {
   resetTrackBtn.addEventListener('click', () => {
     stopAudio();
     cutterSection.classList.add('hidden');
+    urlInput.value = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    urlInput.focus();
     showToast('Válassz egy másik dalt a folytatáshoz.', 'info');
   });
 
