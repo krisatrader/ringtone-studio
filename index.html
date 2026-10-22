@@ -88,17 +88,17 @@
       <!-- SOURCE SELECTOR TABS -->
       <section class="glass-card p-2 sm:p-2.5 rounded-2xl border border-white/10 max-w-2xl mx-auto shadow-2xl">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" id="sourceTabs">
-          <button data-tab="upload" class="tab-btn active flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
-            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
-            <span>Helyi Fájl</span>
+          <button data-tab="search" class="tab-btn active flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Kereső</span>
           </button>
           <button data-tab="link" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
             <i data-lucide="link" class="w-4 h-4"></i>
             <span>Zenei Link</span>
           </button>
-          <button data-tab="search" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
-            <i data-lucide="search" class="w-4 h-4"></i>
-            <span>Kereső</span>
+          <button data-tab="upload" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            <span>Helyi Fájl</span>
           </button>
           <button data-tab="samples" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
             <i data-lucide="dices" class="w-4 h-4 text-emerald-400"></i>
@@ -110,18 +110,39 @@
       <!-- TAB CONTENT CONTAINERS -->
       <section class="max-w-3xl mx-auto">
 
-        <!-- TAB 1: LOCAL UPLOAD -->
-        <div id="tab-upload" class="tab-content">
-          <div id="dropZone" class="group relative border-2 border-dashed border-white/15 hover:border-brand-500/60 rounded-3xl p-8 sm:p-12 text-center transition-all bg-white/[0.02] hover:bg-brand-500/[0.03] cursor-pointer">
-            <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.wma" class="hidden">
-            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 group-hover:bg-brand-500/20 group-hover:border-brand-500/40 flex items-center justify-center mx-auto mb-4 transition-all group-hover:scale-110">
-              <i data-lucide="music" class="w-8 h-8 text-neutral-300 group-hover:text-brand-400"></i>
+        <!-- TAB 1: BUILT-IN MUSIC SEARCH (DEFAULT ACTIVE) -->
+        <div id="tab-search" class="tab-content">
+          <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
+            
+            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
+              <i data-lucide="music" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
+              <div class="text-neutral-300">
+                <span class="font-bold text-white">Azonnali Kereső:</span> Keress bármelyik nemzetközi vagy hazai előadó dalaira! A kiválasztott dalt egy kattintással közvetlenül betöltheted a hullámforma vágóba.
+              </div>
             </div>
-            <h3 class="text-base sm:text-lg font-bold text-white mb-1">Húzd ide a zenefájlt, vagy kattints a tallózáshoz</h3>
-            <p class="text-xs sm:text-sm text-neutral-400 mb-4">Támogatott: MP3, WAV, M4A, AAC, FLAC, OGG (közvetlenül a böngészőből vágva)</p>
-            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold text-white group-hover:bg-brand-600 transition-all">
-              <i data-lucide="folder-open" class="w-4 h-4"></i>
-              <span>Fájl kiválasztása a gépről vagy telefonról</span>
+
+            <label class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-brand-400"></i>
+              <span>Keresés előadó vagy dalcím alapján:</span>
+            </label>
+            <form id="searchForm" class="flex flex-col gap-3">
+              <div class="relative w-full">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-neutral-400">
+                  <i data-lucide="search" class="w-5 h-5"></i>
+                </div>
+                <input type="text" id="searchInput" placeholder="pl. The Weeknd Blinding Lights, Queen, Billie Eilish, Azahriah..." class="w-full pl-12 pr-4 py-3.5 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm sm:text-base text-white placeholder-neutral-500 outline-none transition-all">
+              </div>
+              <button type="submit" id="searchSubmitBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 active:scale-95 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition-all">
+                <i data-lucide="search" class="w-4 h-4"></i>
+                <span>Keresés</span>
+              </button>
+            </form>
+
+            <!-- Search Results Container -->
+            <div id="searchResults" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+              <div class="text-center py-8 text-neutral-500 text-sm">
+                Írj be egy dalcímet vagy előadót a fenti mezőbe a kereséshez.
+              </div>
             </div>
           </div>
         </div>
@@ -169,42 +190,22 @@
           </div>
         </div>
 
-        <!-- TAB 3: BUILT-IN MUSIC SEARCH -->
-        <div id="tab-search" class="tab-content hidden">
-          <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
-            
-            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
-              <i data-lucide="music" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
-              <div class="text-neutral-300">
-                <span class="font-bold text-white">Azonnali Kereső:</span> Keress bármelyik nemzetközi vagy hazai előadó dalaira! A kiválasztott dalt egy kattintással közvetlenül betöltheted a hullámforma vágóba.
-              </div>
+        <!-- TAB 3: LOCAL UPLOAD -->
+        <div id="tab-upload" class="tab-content hidden">
+          <div id="dropZone" class="group relative border-2 border-dashed border-white/15 hover:border-brand-500/60 rounded-3xl p-8 sm:p-12 text-center transition-all bg-white/[0.02] hover:bg-brand-500/[0.03] cursor-pointer">
+            <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.wma" class="hidden">
+            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 group-hover:bg-brand-500/20 group-hover:border-brand-500/40 flex items-center justify-center mx-auto mb-4 transition-all group-hover:scale-110">
+              <i data-lucide="music" class="w-8 h-8 text-neutral-300 group-hover:text-brand-400"></i>
             </div>
-
-            <label class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
-              <i data-lucide="sparkles" class="w-4 h-4 text-brand-400"></i>
-              <span>Keresés előadó vagy dalcím alapján:</span>
-            </label>
-            <form id="searchForm" class="flex gap-3">
-              <div class="relative flex-1">
-                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                  <i data-lucide="search" class="w-5 h-5"></i>
-                </div>
-                <input type="text" id="searchInput" placeholder="pl. The Weeknd Blinding Lights, Queen, Billie Eilish..." class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-white placeholder-neutral-500 outline-none transition-all">
-              </div>
-              <button type="submit" id="searchSubmitBtn" class="px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-sm flex items-center gap-2 transition-all shrink-0">
-                <i data-lucide="search" class="w-4 h-4"></i>
-                <span>Keresés</span>
-              </button>
-            </form>
-
-            <!-- Search Results Container -->
-            <div id="searchResults" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-              <div class="text-center py-8 text-neutral-500 text-sm">
-                Írj be egy dalcímet vagy előadót a fenti mezőbe a kereséshez.
-              </div>
+            <h3 class="text-base sm:text-lg font-bold text-white mb-1">Húzd ide a zenefájlt, vagy kattints a tallózáshoz</h3>
+            <p class="text-xs sm:text-sm text-neutral-400 mb-4">Támogatott: MP3, WAV, M4A, AAC, FLAC, OGG (közvetlenül a böngészőből vágva)</p>
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold text-white group-hover:bg-brand-600 transition-all">
+              <i data-lucide="folder-open" class="w-4 h-4"></i>
+              <span>Fájl kiválasztása a gépről vagy telefonról</span>
             </div>
           </div>
         </div>
+
 
         <!-- TAB 4: SAMPLES / DEMO SONGS -->
         <div id="tab-samples" class="tab-content hidden">
