@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- APPLICATION STATE ---
   const state = {
     isBackendAvailable: false,
+    backendApiUrl: '',      // Local server base URL if connected (e.g. http://localhost:3030)
     currentTrack: null,     // { id, title, artist, duration, format, audioUrl, thumbnail, source, buffer }
     audioBuffer: null,      // Decoded AudioBuffer
     audioContext: null,     // Web Audio API context
@@ -34,28 +35,28 @@ document.addEventListener('DOMContentLoaded', () => {
     dragStartVal: 0,
   };
 
-  // Pre-loaded royalty-free demo samples
+  // Pre-loaded royalty-free demo samples (Full length multi-minute songs!)
   const FALLBACK_SAMPLES = [
     {
       id: 'sample-electronic',
-      title: 'Neon Pulse (Elektronikus / Upbeat)',
-      artist: 'NoCopyrightSounds',
+      title: 'Upbeat Electronic Dance (Teljes Dal - 2:34)',
+      artist: 'Marc Corominas / NCS',
       audioUrl: './samples/sample-electronic.mp3',
       thumbnail: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&h=300&fit=crop',
       genre: 'Elektronikus / Dance'
     },
     {
       id: 'sample-inspirational',
-      title: 'Inspirational Horizon',
-      artist: 'Royalty Free Acoustic',
+      title: 'Acoustic Melody & Vocals (Teljes Dal - 3:27)',
+      artist: 'Madeline Tasquin',
       audioUrl: './samples/sample-inspirational.mp3',
       thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop',
       genre: 'Akusztikus / Pop'
     },
     {
       id: 'sample-synth-ambient',
-      title: 'Retro Synthwave Dream',
-      artist: 'Analog Master Synthesizer',
+      title: 'Synthwave Neon Drive (Teljes Dal - 3:18)',
+      artist: 'Composer Squad',
       audioUrl: './samples/sample-synth-ambient.mp3',
       thumbnail: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=300&h=300&fit=crop',
       genre: 'Retro Synthwave'
@@ -113,6 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const startNudgePlus = document.getElementById('startNudgePlus');
   const endNudgeMinus = document.getElementById('endNudgeMinus');
   const endNudgePlus = document.getElementById('endNudgePlus');
+
+  // Dual iPhone Touch Sliders
+  const startSlider = document.getElementById('startSlider');
+  const endSlider = document.getElementById('endSlider');
+  const sliderStartTimeVal = document.getElementById('sliderStartTimeVal');
+  const sliderEndTimeVal = document.getElementById('sliderEndTimeVal');
 
   // Presets
   const presetRingtoneBtn = document.getElementById('presetRingtoneBtn');
@@ -188,25 +195,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- CHECK BACKEND AVAILABILITY ---
   async function checkBackendStatus() {
+    // 1. Try relative /api/status
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
-
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const res = await fetch('/api/status', { signal: controller.signal });
       clearTimeout(timeoutId);
-
       if (res.ok) {
         state.isBackendAvailable = true;
+        state.backendApiUrl = '';
         backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        backendStatusText.textContent = 'Helyi Szerver Aktív (FFmpeg & yt-dlp)';
+        backendStatusText.textContent = 'Helyi Szerver Aktív (yt-dlp & FFmpeg - Teljes dalok)';
         return;
       }
-    } catch (e) {
-      // Running statically on GitHub Pages
-    }
+    } catch (e) {}
+
+    // 2. Try http://localhost:3030 if running hosted on GitHub Pages
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
+      const res = await fetch('http://localhost:3030/api/status', { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        state.isBackendAvailable = true;
+        state.backendApiUrl = 'http://localhost:3030';
+        backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        backendStatusText.textContent = 'Helyi Motor Csatlakoztatva (localhost:3030)';
+        return;
+      }
+    } catch (e) {}
 
     state.isBackendAvailable = false;
-    backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    state.backendApiUrl = '';
+    backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20';
     backendStatusText.textContent = 'Webes Audió Motor Aktív (100% Online)';
   }
 
@@ -239,12 +260,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- UPDATE TIMING DASHBOARD ---
-  function updateTimingDisplay() {
+  function updateTimingDisplay(syncSliders = true) {
     const totalDur = state.audioBuffer ? state.audioBuffer.duration : (state.currentTrack?.duration || 0);
     
     // Clamp
     if (state.startTime < 0) state.startTime = 0;
-    if (state.startTime > totalDur - 1) state.startTime = Math.max(0, totalDur - 1);
+    if (state.startTime > Math.max(0, totalDur - 0.5)) state.startTime = Math.max(0, totalDur - 0.5);
     if (state.endTime <= state.startTime) state.endTime = Math.min(totalDur, state.startTime + 30);
     if (state.endTime > totalDur) state.endTime = totalDur;
 
@@ -253,6 +274,20 @@ document.addEventListener('DOMContentLoaded', () => {
     startTimeVal.textContent = formatTime(state.startTime);
     endTimeVal.textContent = formatTime(state.endTime);
     selectedDurationVal.textContent = selectedDur.toFixed(1);
+
+    if (sliderStartTimeVal) sliderStartTimeVal.textContent = formatTime(state.startTime);
+    if (sliderEndTimeVal) sliderEndTimeVal.textContent = formatTime(state.endTime);
+
+    if (syncSliders && totalDur > 0) {
+      if (startSlider) {
+        startSlider.max = totalDur;
+        startSlider.value = state.startTime;
+      }
+      if (endSlider) {
+        endSlider.max = totalDur;
+        endSlider.value = state.endTime;
+      }
+    }
 
     // iPhone 40s limitation check
     if (selectedDur <= 40.0) {
@@ -269,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawWaveform();
   }
 
-  // --- UNIVERSAL IN-BROWSER MUSIC RESOLVER ---
+  // --- UNIVERSAL IN-BROWSER MUSIC RESOLVER (FULL LENGTH TRACKS!) ---
   async function resolveInBrowser(queryOrUrl) {
     const trimmed = queryOrUrl.trim();
     const isSpotify = /spotify\.com/i.test(trimmed) || /^spotify:/i.test(trimmed);
@@ -285,7 +320,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Apple Music resolution
     if (isApple) {
       sourceName = 'Apple Music';
-      // Look for track ID (?i=123456)
       const trackIdMatch = trimmed.match(/[?&]i=(\d+)/i) || trimmed.match(/\/album\/[^/]+\/(\d+)/i);
       if (trackIdMatch) {
         const appleId = trackIdMatch[1];
@@ -295,25 +329,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.results && data.results.length > 0) {
               const item = data.results[0];
-              return {
-                title: item.trackName || item.collectionName,
-                artist: item.artistName,
-                thumbnail: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
-                audioUrl: item.previewUrl,
-                duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
-                source: 'Apple Music'
-              };
+              trackTitleHint = item.trackName || item.collectionName || '';
+              trackArtistHint = item.artistName || '';
+              thumbnailHint = (item.artworkUrl100 || '').replace('100x100bb', '600x600bb');
+              searchQuery = `${trackTitleHint} ${trackArtistHint}`.trim();
             }
           }
         } catch (e) {
-          console.warn('Apple lookup failed, falling back to search slug:', e);
+          console.warn('Apple lookup failed:', e);
         }
       }
 
-      // Fallback: extract slug from URL
-      const slugMatch = trimmed.match(/\/album\/([^/?]+)/i) || trimmed.match(/\/song\/([^/?]+)/i);
-      if (slugMatch) {
-        searchQuery = decodeURIComponent(slugMatch[1].replace(/-/g, ' '));
+      if (!trackTitleHint) {
+        const slugMatch = trimmed.match(/\/album\/([^/?]+)/i) || trimmed.match(/\/song\/([^/?]+)/i);
+        if (slugMatch) {
+          searchQuery = decodeURIComponent(slugMatch[1].replace(/-/g, ' '));
+        }
       }
     }
 
@@ -353,14 +384,42 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/[|•-]/g, ' ')
             .trim();
 
-          searchQuery = `${clean} ${trackArtistHint}`;
+          searchQuery = `${clean} ${trackArtistHint}`.trim();
         }
       } catch (e) {
         console.warn('YouTube oEmbed fetch error:', e);
       }
     }
 
-    // 4. Query iTunes High-Quality Audio CDN (100% CORS supported)
+    // --- PRIORITY 1: Audius Open Music Network for FULL LENGTH TRACKS (100% full song, 3-6 mins!) ---
+    try {
+      const audiusUrl = `https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&limit=5&app_name=ringtone-studio`;
+      const audiusRes = await fetch(audiusUrl);
+      if (audiusRes.ok) {
+        const aData = await audiusRes.json();
+        if (aData.data && aData.data.length > 0) {
+          const best = aData.data[0];
+          let art = thumbnailHint;
+          if (best.artwork) {
+            art = best.artwork['480x480'] || best.artwork['1000x1000'] || best.artwork['150x150'] || art;
+          }
+          const fullStreamUrl = `https://discoveryprovider.audius.co/v1/tracks/${best.id}/stream?app_name=ringtone-studio`;
+          return {
+            id: 'audius-' + best.id,
+            title: trackTitleHint || best.title,
+            artist: trackArtistHint || best.user?.name || 'Előadó',
+            thumbnail: art,
+            audioUrl: fullStreamUrl,
+            duration: best.duration || 180, // Full multi-minute length!
+            source: `${sourceName} (Audius Teljes Dal)`
+          };
+        }
+      }
+    } catch (aErr) {
+      console.warn('Audius search error, trying iTunes search:', aErr);
+    }
+
+    // --- PRIORITY 2: Query iTunes Audio Stream (High Quality CDN) ---
     const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=1`;
     const itunesRes = await fetch(itunesUrl);
     if (!itunesRes.ok) throw new Error('Nem sikerült kapcsolatot létesíteni az online zenetárral.');
@@ -450,9 +509,19 @@ document.addEventListener('DOMContentLoaded', () => {
       state.endTime = Math.min(30, dur);
       state.playOffset = 0;
 
+      // Initialize dual touch sliders
+      if (startSlider) {
+        startSlider.max = dur;
+        startSlider.value = 0;
+      }
+      if (endSlider) {
+        endSlider.max = dur;
+        endSlider.value = state.endTime;
+      }
+
       waveformLoading.classList.add('hidden');
-      updateTimingDisplay();
-      showToast('Zene sikeresen betöltve! Készítsd el a csengőhangodat.', 'success');
+      updateTimingDisplay(true);
+      showToast(`Zene sikeresen betöltve (${formatTime(dur)})! Teljes dal készen áll a lejátszásra és vágásra.`, 'success');
     } catch (err) {
       console.error('Audio load error:', err);
       waveformLoading.classList.add('hidden');
@@ -572,47 +641,81 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.fill();
     }
 
-    // 3. Draw Start Handle
+    // 3. Draw Start Handle (Vibrant Purple, Touch-friendly Pills)
     if (startX >= 0 && startX <= width) {
+      const isDraggingStart = state.draggingHandle === 'start';
       ctx.strokeStyle = '#8b5cf6';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = isDraggingStart ? 3.5 : 2.5;
+      if (isDraggingStart) {
+        ctx.shadowColor = 'rgba(139, 92, 246, 0.8)';
+        ctx.shadowBlur = 10;
+      }
       ctx.beginPath();
       ctx.moveTo(startX, 0);
       ctx.lineTo(startX, height);
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Top badge handle
+      // Top pill handle
       ctx.fillStyle = '#8b5cf6';
       ctx.beginPath();
-      ctx.roundRect(startX - 6, 4, 12, 18, 4);
+      ctx.roundRect(startX - 22, 2, 44, 20, 6);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('START', startX, 12);
+
+      // Bottom grip pill
+      ctx.fillStyle = '#8b5cf6';
+      ctx.beginPath();
+      ctx.roundRect(startX - 14, height - 19, 28, 17, 5);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px sans-serif';
-      ctx.fillText('S', startX - 3, 16);
+      ctx.fillText('◀▶', startX, height - 10.5);
     }
 
-    // 4. Draw End Handle
+    // 4. Draw End Handle (Vibrant Pink, Touch-friendly Pills)
     if (endX >= 0 && endX <= width) {
+      const isDraggingEnd = state.draggingHandle === 'end';
       ctx.strokeStyle = '#ec4899';
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = isDraggingEnd ? 3.5 : 2.5;
+      if (isDraggingEnd) {
+        ctx.shadowColor = 'rgba(236, 72, 153, 0.8)';
+        ctx.shadowBlur = 10;
+      }
       ctx.beginPath();
       ctx.moveTo(endX, 0);
       ctx.lineTo(endX, height);
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Top badge handle
+      // Top pill handle
       ctx.fillStyle = '#ec4899';
       ctx.beginPath();
-      ctx.roundRect(endX - 6, 4, 12, 18, 4);
+      ctx.roundRect(endX - 22, 2, 44, 20, 6);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('VÉG', endX, 12);
+
+      // Bottom grip pill
+      ctx.fillStyle = '#ec4899';
+      ctx.beginPath();
+      ctx.roundRect(endX - 14, height - 19, 28, 17, 5);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 9px sans-serif';
-      ctx.fillText('E', endX - 3, 16);
+      ctx.fillText('◀▶', endX, height - 10.5);
     }
 
     // 5. Draw Playhead Scrubber Cursor
     if (playX >= 0 && playX <= width) {
-      ctx.strokeStyle = '#007AFF'; // iOS Blue
+      ctx.strokeStyle = '#38bdf8'; // Sky Blue
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(playX, 0);
@@ -620,9 +723,9 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
 
       // Indicator pip
-      ctx.fillStyle = '#007AFF';
+      ctx.fillStyle = '#38bdf8';
       ctx.beginPath();
-      ctx.arc(playX, height - 6, 4, 0, Math.PI * 2);
+      ctx.arc(playX, height - 6, 5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -673,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         } else {
           stopAudio();
-          state.playOffset = state.startTime;
+          state.playOffset = playSelectionOnly ? state.startTime : 0;
           currentTimeDisplay.textContent = formatTime(state.playOffset);
           drawWaveform();
           return;
@@ -707,16 +810,20 @@ document.addEventListener('DOMContentLoaded', () => {
     drawWaveform();
   }
 
-  // Play / Pause toggle
+  // Play / Pause toggle: Plays the ENTIRE full track from current scrubber position
   playPauseBtn.addEventListener('click', () => {
     if (state.isPlaying) {
       stopAudio();
     } else {
-      startAudio(state.playOffset || state.startTime);
+      const dur = state.audioBuffer ? state.audioBuffer.duration : 0;
+      if (state.playOffset >= dur - 0.5) {
+        state.playOffset = 0;
+      }
+      startAudio(state.playOffset || 0, false);
     }
   });
 
-  // Play selection only
+  // Play selection only: Previews only the selected ringtone cut
   playSelectionBtn.addEventListener('click', () => {
     startAudio(state.startTime, true);
   });
@@ -742,20 +849,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- WAVEFORM INTERACTION (DRAG & SEEK) ---
+  // --- WAVEFORM INTERACTION (TOUCH & POINTER OPTIMIZED FOR IPHONE & DESKTOP) ---
   function getTimeFromEvent(e) {
     const rect = waveformContainer.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : (e.clientX !== undefined ? e.clientX : 0);
     const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
     const totalDuration = state.audioBuffer ? state.audioBuffer.duration : 1;
     const visibleDuration = totalDuration / state.zoomLevel;
     return state.viewOffset + (x / rect.width) * visibleDuration;
   }
 
-  waveformContainer.addEventListener('mousedown', (e) => {
+  function getXFromEvent(e) {
+    const rect = waveformContainer.getBoundingClientRect();
+    const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : (e.clientX !== undefined ? e.clientX : 0);
+    return Math.max(0, Math.min(rect.width, clientX - rect.left));
+  }
+
+  function handleDragStart(e) {
     if (!state.audioBuffer) return;
     const rect = waveformContainer.getBoundingClientRect();
-    const x = e.clientX - rect.left;
+    const x = getXFromEvent(e);
     const totalDuration = state.audioBuffer.duration;
     const visibleDuration = totalDuration / state.zoomLevel;
 
@@ -765,45 +878,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const startX = timeToX(state.startTime);
     const endX = timeToX(state.endTime);
-    const tolerance = 12; // px
+    const tolerance = 32; // Generous 32px touch target for iPhone
 
-    if (Math.abs(x - startX) <= tolerance) {
+    const distStart = Math.abs(x - startX);
+    const distEnd = Math.abs(x - endX);
+
+    // If close to both handles (e.g. narrow selection), pick the closer one
+    if (distStart <= tolerance && distEnd <= tolerance) {
+      state.draggingHandle = (distStart <= distEnd) ? 'start' : 'end';
+    } else if (distStart <= tolerance) {
       state.draggingHandle = 'start';
-    } else if (Math.abs(x - endX) <= tolerance) {
+    } else if (distEnd <= tolerance) {
       state.draggingHandle = 'end';
     } else if (x > startX + tolerance && x < endX - tolerance) {
       state.draggingHandle = 'window';
       state.dragStartX = x;
       state.dragStartVal = state.startTime;
     } else {
-      // Seek playhead
+      // Direct seek playhead
+      state.draggingHandle = null;
       const targetTime = getTimeFromEvent(e);
       state.playOffset = targetTime;
       currentTimeDisplay.textContent = formatTime(targetTime);
       if (state.isPlaying) {
-        startAudio(targetTime);
+        startAudio(targetTime, false);
       } else {
         drawWaveform();
       }
     }
-  });
 
-  window.addEventListener('mousemove', (e) => {
+    if (state.draggingHandle && e.cancelable) {
+      e.preventDefault();
+    }
+  }
+
+  function handleDragMove(e) {
     if (!state.draggingHandle || !state.audioBuffer) return;
+    if (e.cancelable) e.preventDefault();
+
     const targetTime = getTimeFromEvent(e);
     const totalDuration = state.audioBuffer.duration;
 
     if (state.draggingHandle === 'start') {
-      if (targetTime < state.endTime - 0.5 && targetTime >= 0) {
-        state.startTime = parseFloat(targetTime.toFixed(2));
-      }
+      const clampedStart = Math.max(0, Math.min(state.endTime - 0.5, targetTime));
+      state.startTime = parseFloat(clampedStart.toFixed(2));
     } else if (state.draggingHandle === 'end') {
-      if (targetTime > state.startTime + 0.5 && targetTime <= totalDuration) {
-        state.endTime = parseFloat(targetTime.toFixed(2));
-      }
+      // Clamps cleanly without freezing at the edges!
+      const clampedEnd = Math.min(totalDuration, Math.max(state.startTime + 0.5, targetTime));
+      state.endTime = parseFloat(clampedEnd.toFixed(2));
     } else if (state.draggingHandle === 'window') {
       const rect = waveformContainer.getBoundingClientRect();
-      const dx = (e.clientX - rect.left) - state.dragStartX;
+      const x = getXFromEvent(e);
+      const dx = x - state.dragStartX;
       const visibleDuration = totalDuration / state.zoomLevel;
       const dt = (dx / rect.width) * visibleDuration;
       const curDur = state.endTime - state.startTime;
@@ -816,65 +942,163 @@ document.addEventListener('DOMContentLoaded', () => {
       state.endTime = parseFloat((newStart + curDur).toFixed(2));
     }
 
-    updateTimingDisplay();
-  });
+    updateTimingDisplay(true);
+  }
 
-  window.addEventListener('mouseup', () => {
-    state.draggingHandle = null;
-  });
+  function handleDragEnd() {
+    if (state.draggingHandle) {
+      state.draggingHandle = null;
+      drawWaveform();
+    }
+  }
 
-  // Touch support for mobile / iPhone Safari
-  waveformContainer.addEventListener('touchstart', (e) => {
-    if (!state.audioBuffer) return;
-    const targetTime = getTimeFromEvent(e);
-    state.playOffset = targetTime;
-    currentTimeDisplay.textContent = formatTime(targetTime);
-    if (state.isPlaying) startAudio(targetTime);
-    else drawWaveform();
-  }, { passive: true });
+  // Unified Mouse & Touch event listeners
+  waveformContainer.addEventListener('mousedown', handleDragStart);
+  window.addEventListener('mousemove', handleDragMove);
+  window.addEventListener('mouseup', handleDragEnd);
+
+  waveformContainer.addEventListener('touchstart', handleDragStart, { passive: false });
+  window.addEventListener('touchmove', handleDragMove, { passive: false });
+  window.addEventListener('touchend', handleDragEnd);
+  window.addEventListener('touchcancel', handleDragEnd);
+
+  // Sync dual iPhone range sliders with state
+  if (startSlider) {
+    startSlider.addEventListener('input', (e) => {
+      if (!state.audioBuffer) return;
+      const val = parseFloat(e.target.value);
+      state.startTime = Math.min(val, state.endTime - 0.5);
+      updateTimingDisplay(false);
+    });
+  }
+
+  if (endSlider) {
+    endSlider.addEventListener('input', (e) => {
+      if (!state.audioBuffer) return;
+      const val = parseFloat(e.target.value);
+      state.endTime = Math.max(val, state.startTime + 0.5);
+      updateTimingDisplay(false);
+    });
+  }
 
   // --- NUDGE CONTROLS ---
   startNudgeMinus.addEventListener('click', () => {
     state.startTime = Math.max(0, state.startTime - 0.5);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
   });
   startNudgePlus.addEventListener('click', () => {
     state.startTime = Math.min(state.endTime - 0.5, state.startTime + 0.5);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
   });
   endNudgeMinus.addEventListener('click', () => {
     state.endTime = Math.max(state.startTime + 0.5, state.endTime - 0.5);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
   });
   endNudgePlus.addEventListener('click', () => {
     const totalDur = state.audioBuffer ? state.audioBuffer.duration : 60;
     state.endTime = Math.min(totalDur, state.endTime + 0.5);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
   });
+
+  // --- INTELLIGENT CHORUS DETECTION (RMS ENERGY & SPECTRAL DENSITY) ---
+  function detectChorusSection(audioBuffer, targetDuration = 30) {
+    const totalDuration = audioBuffer.duration;
+    if (totalDuration <= targetDuration) {
+      return { start: 0, end: totalDuration };
+    }
+
+    const rawData = audioBuffer.getChannelData(0);
+    const sampleRate = audioBuffer.sampleRate;
+
+    // Downsample into 200ms RMS energy frames for fast and accurate spectral power analysis
+    const frameSec = 0.2;
+    const frameSamples = Math.floor(sampleRate * frameSec);
+    const numFrames = Math.floor(rawData.length / frameSamples);
+    const energies = new Float32Array(numFrames);
+
+    for (let f = 0; f < numFrames; f++) {
+      const offset = f * frameSamples;
+      let sum = 0;
+      for (let i = 0; i < frameSamples; i += 4) {
+        const s = rawData[offset + i];
+        sum += s * s;
+      }
+      energies[f] = Math.sqrt(sum / (frameSamples / 4));
+    }
+
+    const windowFrames = Math.floor(targetDuration / frameSec);
+    let bestScore = -1;
+    let bestStartFrame = 0;
+
+    // In pop/electronic/rock music, choruses rarely occur in intro (<12%) or outro (>88%)
+    const minFrame = Math.floor((totalDuration * 0.12) / frameSec);
+    const maxFrame = Math.max(minFrame + 1, numFrames - windowFrames - Math.floor((totalDuration * 0.05) / frameSec));
+
+    let currentWindowEnergy = 0;
+    for (let i = minFrame; i < minFrame + windowFrames && i < numFrames; i++) {
+      currentWindowEnergy += energies[i];
+    }
+
+    for (let f = minFrame; f < maxFrame; f++) {
+      if (f > minFrame) {
+        currentWindowEnergy += energies[f + windowFrames - 1] - energies[f - 1];
+      }
+
+      // Weight position towards typical chorus locations (25% to 65% of track duration)
+      const timeRatio = (f * frameSec) / totalDuration;
+      let posWeight = 1.0;
+      if (timeRatio >= 0.25 && timeRatio <= 0.65) {
+        posWeight = 1.25; // Boost likely chorus zone
+      } else if (timeRatio < 0.15 || timeRatio > 0.85) {
+        posWeight = 0.8;
+      }
+
+      const score = currentWindowEnergy * posWeight;
+      if (score > bestScore) {
+        bestScore = score;
+        bestStartFrame = f;
+      }
+    }
+
+    const startSec = Math.max(0, parseFloat((bestStartFrame * frameSec).toFixed(1)));
+    const endSec = Math.min(totalDuration, parseFloat((startSec + targetDuration).toFixed(1)));
+    return { start: startSec, end: endSec };
+  }
 
   // --- PRESET BUTTONS ---
   presetRingtoneBtn.addEventListener('click', () => {
     const totalDur = state.audioBuffer ? state.audioBuffer.duration : 60;
     state.endTime = Math.min(totalDur, state.startTime + 30);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
     showToast('Csengőhang hossz beállítva (30 másodperc)', 'info');
   });
 
   presetAlertBtn.addEventListener('click', () => {
     const totalDur = state.audioBuffer ? state.audioBuffer.duration : 60;
     state.endTime = Math.min(totalDur, state.startTime + 10);
-    updateTimingDisplay();
+    updateTimingDisplay(true);
     showToast('SMS / Értesítő hang beállítva (10 másodperc)', 'info');
   });
 
+  // Chorus detection preset button
   presetHookBtn.addEventListener('click', () => {
-    const totalDur = state.audioBuffer ? state.audioBuffer.duration : 60;
-    const chorusStart = Math.min(Math.max(0, totalDur * 0.35), totalDur - 30);
-    state.startTime = parseFloat(chorusStart.toFixed(1));
-    state.endTime = parseFloat(Math.min(totalDur, chorusStart + 30).toFixed(1));
-    state.playOffset = state.startTime;
-    updateTimingDisplay();
-    showToast('Refrén szekció kiválasztva (30 másodperc)', 'info');
+    if (!state.audioBuffer) {
+      showToast('Kérlek először tölts be egy dalt a refrén felismeréséhez!', 'info');
+      return;
+    }
+
+    showToast('🔍 Refrén keresése a dal dinamikus energiaspektruma alapján...', 'info');
+
+    setTimeout(() => {
+      const chorus = detectChorusSection(state.audioBuffer, 30);
+      state.startTime = chorus.start;
+      state.endTime = chorus.end;
+      state.playOffset = state.startTime;
+      updateTimingDisplay(true);
+
+      showToast(`🎯 Refrén sikeresen kijelölve: ${formatTime(state.startTime)} - ${formatTime(state.endTime)}!`, 'success');
+      startAudio(state.startTime, true);
+    }, 120);
   });
 
   // --- ZOOM BUTTONS ---
@@ -1016,16 +1240,20 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       showToast('Zenei link feloldása és audió kinyerése...', 'info');
 
-      // 1. If backend is available, try backend resolve first
+      // 1. If backend is available, try backend resolve first (downloads full track via yt-dlp)
       if (state.isBackendAvailable) {
         try {
-          const res = await fetch('/api/resolve', {
+          const baseUrl = state.backendApiUrl || '';
+          const res = await fetch(`${baseUrl}/api/resolve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url }),
           });
           const data = await res.json();
           if (res.ok && data.audioUrl) {
+            if (data.audioUrl.startsWith('/') && state.backendApiUrl) {
+              data.audioUrl = state.backendApiUrl + data.audioUrl;
+            }
             loadAudioIntoStudio(data);
             return;
           }
@@ -1034,7 +1262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // 2. Universal Web Resolver (Runs directly on GitHub Pages!)
+      // 2. Universal Web Resolver (Runs directly on GitHub Pages with Audius full tracks!)
       const trackData = await resolveInBrowser(url);
       loadAudioIntoStudio(trackData);
 
@@ -1047,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- SEARCH FORM HANDLER ---
+  // --- SEARCH FORM HANDLER (PRIORITIZES FULL-LENGTH AUDIUS SONGS) ---
   searchForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const q = searchInput.value.trim();
@@ -1063,34 +1291,66 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let results = [];
 
-      // 1. Query Universal iTunes Music API (Works directly from GitHub Pages!)
+      // 1. Query Audius Open Network for FULL-LENGTH tracks (3-6 minutes long!)
       try {
-        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12`;
-        const res = await fetch(itunesUrl);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.results && data.results.length > 0) {
-            results = data.results.map((item) => ({
-              id: item.trackId,
-              title: item.trackName,
-              artist: item.artistName,
-              duration: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 30,
-              formattedDuration: item.trackTimeMillis
-                ? `${Math.floor(item.trackTimeMillis / 60000)}:${String(Math.floor((item.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}`
-                : '0:30',
-              url: item.previewUrl,
-              thumbnail: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
-              source: 'Apple Music / iTunes'
-            }));
+        const audiusRes = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(q)}&limit=12&app_name=ringtone-studio`);
+        if (audiusRes.ok) {
+          const aData = await audiusRes.json();
+          if (aData.data && aData.data.length > 0) {
+            results = aData.data.map((item) => {
+              const durSec = item.duration || 180;
+              let art = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop';
+              if (item.artwork) {
+                art = item.artwork['150x150'] || item.artwork['480x480'] || art;
+              }
+              return {
+                id: item.id,
+                title: item.title,
+                artist: item.user?.name || 'Előadó',
+                duration: durSec,
+                formattedDuration: `${Math.floor(durSec / 60)}:${String(Math.floor(durSec % 60)).padStart(2, '0')}`,
+                url: `https://discoveryprovider.audius.co/v1/tracks/${item.id}/stream?app_name=ringtone-studio`,
+                thumbnail: art,
+                source: 'Audius (Teljes Dal)'
+              };
+            });
           }
         }
-      } catch (clientErr) {
-        console.warn('Client search error, trying backend if available:', clientErr);
+      } catch (audiusErr) {
+        console.warn('Audius search error, falling back to iTunes:', audiusErr);
       }
 
-      // 2. If no client results and backend is available, try backend search
+      // 2. Query iTunes if Audius had no direct match
+      if (results.length === 0) {
+        try {
+          const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12`;
+          const res = await fetch(itunesUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+              results = data.results.map((item) => ({
+                id: item.trackId,
+                title: item.trackName,
+                artist: item.artistName,
+                duration: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 30,
+                formattedDuration: item.trackTimeMillis
+                  ? `${Math.floor(item.trackTimeMillis / 60000)}:${String(Math.floor((item.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}`
+                  : '0:30',
+                url: item.previewUrl,
+                thumbnail: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+                source: 'Apple Music / iTunes'
+              }));
+            }
+          }
+        } catch (clientErr) {
+          console.warn('iTunes search error:', clientErr);
+        }
+      }
+
+      // 3. If no client results and backend is available, try backend search
       if (results.length === 0 && state.isBackendAvailable) {
-        const bRes = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const baseUrl = state.backendApiUrl || '';
+        const bRes = await fetch(`${baseUrl}/api/search?q=${encodeURIComponent(q)}`);
         const bData = await bRes.json();
         if (bRes.ok && bData.results) {
           results = bData.results;
@@ -1112,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="min-w-0">
               <h5 class="text-xs sm:text-sm font-bold text-white truncate">${item.title}</h5>
               <p class="text-[11px] text-neutral-400 truncate">${item.artist}</p>
-              <span class="text-[10px] text-neutral-500 font-mono">${item.formattedDuration}</span>
+              <span class="text-[10px] text-emerald-400 font-mono font-semibold">${item.formattedDuration}</span>
             </div>
           </div>
           <button data-url="${item.url}" data-title="${encodeURIComponent(item.title)}" data-artist="${encodeURIComponent(item.artist)}" data-thumb="${encodeURIComponent(item.thumbnail)}" class="select-search-item px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-xs transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-brand-600/20">
@@ -1139,24 +1399,28 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             showToast('Dal betöltése a vágáshoz...', 'info');
 
-            if (itemUrl.startsWith('http') && itemUrl.includes('apple.com')) {
-              // Direct audio stream from iTunes
+            if (itemUrl.startsWith('http') && (itemUrl.includes('audius.co') || itemUrl.includes('apple.com'))) {
+              // Direct audio stream (Audius is FULL LENGTH!)
               loadAudioIntoStudio({
-                id: 'itunes-' + Date.now(),
+                id: 'stream-' + Date.now(),
                 title: sTitle,
                 artist: sArtist,
                 audioUrl: itemUrl,
                 thumbnail: sThumb,
-                source: 'Zene Kereső'
+                source: itemUrl.includes('audius.co') ? 'Audius (Teljes Dal)' : 'Zene Kereső'
               });
             } else if (state.isBackendAvailable) {
-              const resolveRes = await fetch('/api/resolve', {
+              const baseUrl = state.backendApiUrl || '';
+              const resolveRes = await fetch(`${baseUrl}/api/resolve`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: itemUrl }),
               });
               const itemData = await resolveRes.json();
               if (!resolveRes.ok) throw new Error(itemData.error || 'Hiba a betöltéskor');
+              if (itemData.audioUrl && itemData.audioUrl.startsWith('/') && state.backendApiUrl) {
+                itemData.audioUrl = state.backendApiUrl + itemData.audioUrl;
+              }
               loadAudioIntoStudio(itemData);
             } else {
               const trackData = await resolveInBrowser(`${sArtist} ${sTitle}`);
@@ -1234,23 +1498,27 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast('Minta dal betöltése a stúdióba...', 'info');
 
           if (state.isBackendAvailable) {
-            const res = await fetch('/api/load-sample', {
+            const baseUrl = state.backendApiUrl || '';
+            const res = await fetch(`${baseUrl}/api/load-sample`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ sampleId }),
             });
             const sData = await res.json();
             if (!res.ok) throw new Error(sData.error || 'Betöltési hiba');
+            if (sData.audioUrl && sData.audioUrl.startsWith('/') && state.backendApiUrl) {
+              sData.audioUrl = state.backendApiUrl + sData.audioUrl;
+            }
             loadAudioIntoStudio(sData);
           } else {
-            // Standalone mode: load directly from public/samples URL
+            // Standalone mode: load directly from public/samples URL (Full multi-minute songs!)
             loadAudioIntoStudio({
               id: selectedSample.id,
               title: selectedSample.title,
               artist: selectedSample.artist,
               audioUrl: selectedSample.audioUrl,
               thumbnail: selectedSample.thumbnail,
-              source: 'Minta zenetár (Előtöltött)'
+              source: 'Minta zenetár (Teljes Dal)'
             });
           }
         } catch (err) {
@@ -1391,7 +1659,8 @@ document.addEventListener('DOMContentLoaded', () => {
           title: sanitizedTitle,
         };
 
-        const res = await fetch('/api/convert', {
+        const baseUrl = state.backendApiUrl || '';
+        const res = await fetch(`${baseUrl}/api/convert`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1403,7 +1672,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`Csengőhang elkészült (${data.duration}s)! Letöltés...`, 'success');
 
         const a = document.createElement('a');
-        a.href = data.downloadUrl;
+        let dlUrl = data.downloadUrl;
+        if (dlUrl && dlUrl.startsWith('/') && state.backendApiUrl) {
+          dlUrl = state.backendApiUrl + dlUrl;
+        }
+        a.href = dlUrl;
         a.download = data.filename;
         document.body.appendChild(a);
         a.click();

@@ -1,5 +1,20 @@
 /* Custom Styling for Ringtone Studio */
 
+/* CRITICAL FOR IPHONE: Prevent iOS Safari from zooming on input focus */
+input, select, textarea {
+  font-size: 16px !important;
+  touch-action: manipulation;
+}
+
+/* Ensure waveform canvas allows pointer events and prevents browser touch scrolling while dragging */
+#waveformCanvas, #waveformContainer {
+  touch-action: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  cursor: crosshair;
+}
+
 @layer utilities {
   .glass-card {
     background: rgba(18, 18, 24, 0.7);
@@ -42,14 +57,28 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  border: 2px solid #7c3aed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 3px solid #7c3aed;
   transition: transform 0.1s ease;
+}
+
+#startSlider::-webkit-slider-thumb {
+  border-color: #8b5cf6;
+  width: 24px;
+  height: 24px;
+  background: #ede9fe;
+}
+
+#endSlider::-webkit-slider-thumb {
+  border-color: #ec4899;
+  width: 24px;
+  height: 24px;
+  background: #fdf2f8;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -62,13 +91,25 @@ input[type="range"]::-webkit-slider-thumb:active {
 
 /* Firefox */
 input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-  border: 2px solid #7c3aed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  border: 3px solid #7c3aed;
+}
+
+#startSlider::-moz-range-thumb {
+  border-color: #8b5cf6;
+  width: 24px;
+  height: 24px;
+}
+
+#endSlider::-moz-range-thumb {
+  border-color: #ec4899;
+  width: 24px;
+  height: 24px;
 }
 
 /* Custom scrollbars */
