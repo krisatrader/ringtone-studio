@@ -565,7 +565,7 @@
           </div>
           <div>
             <h3 class="text-lg font-bold text-white">Hogyan állítsd be az iPhone-odon?</h3>
-            <p class="text-xs text-neutral-400">3 egyszerű módszer a letöltött .m4r csengőhang aktiválására</p>
+            <p class="text-xs text-neutral-400">A letöltött .m4r csengőhang azonnali aktiválásának lépései</p>
           </div>
         </div>
         <button id="closeGuideBtn" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-neutral-400 hover:text-white transition-all">
@@ -573,23 +573,10 @@
         </button>
       </div>
 
-      <!-- Guide Tabs -->
-      <div class="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/10" id="guideTabs">
-        <button data-guide="iphone" class="guide-tab-btn active py-2.5 px-3 rounded-xl text-xs font-bold transition-all">
-          📱 iPhone (Közvetlen)
-        </button>
-        <button data-guide="garageband" class="guide-tab-btn py-2.5 px-3 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white transition-all">
-          🎹 GarageBand
-        </button>
-        <button data-guide="computer" class="guide-tab-btn py-2.5 px-3 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white transition-all">
-          💻 Mac / Windows
-        </button>
-      </div>
-
-      <!-- Guide Tab 1: Direct iPhone Setup -->
-      <div id="guide-iphone" class="guide-content space-y-4">
+      <!-- Direct iPhone Setup Guide -->
+      <div id="guide-iphone" class="space-y-4">
         <div class="p-4 rounded-2xl bg-gradient-to-r from-brand-600/20 via-purple-600/20 to-pink-600/20 border border-brand-500/30 text-xs text-brand-200">
-          ✨ <strong>Azonnali beállítás iPhone-on:</strong> A csengőhang letöltése után közvetlenül az iPhone rendszer menüjéből aktiválhatod!
+          ✨ <strong>Azonnali beállítás iPhone-on:</strong> Nem szükséges semmilyen extra program vagy számítógép! A csengőhang letöltése után közvetlenül az iPhone rendszer menüjéből aktiválhatod.
         </div>
 
         <ol class="space-y-3.5 text-xs sm:text-sm text-neutral-300">
@@ -622,57 +609,6 @@
             <div>
               <strong class="text-emerald-300 text-sm">Kész! A csengőhang azonnal beállítva:</strong>
               <p class="text-neutral-400 text-xs mt-1">Az új csengőhang azonnal aktív, és megjelenik a <em>Beállítások ➔ Hangok és haptika ➔ Csengőhang</em> menü legtetején is.</p>
-            </div>
-          </li>
-        </ol>
-      </div>
-
-      <!-- Guide Tab 2: GarageBand Method -->
-      <div id="guide-garageband" class="guide-content hidden space-y-4">
-        <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-neutral-300">
-          🎹 <strong>GarageBand módszer:</strong> Ha a fájlt a GarageBand appban szeretnéd megnyitni és finomhangolni:
-        </div>
-
-        <ol class="space-y-3.5 text-xs sm:text-sm text-neutral-300">
-          <li class="flex items-start gap-3">
-            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
-            <div>
-              <strong class="text-white">Nyisd meg a GarageBand-et:</strong>
-              <p class="text-neutral-400 text-xs mt-0.5">Válassz egy tetszőleges hangszert (pl. <em>Hangrögzítő</em>), majd válts a bal felső sáv nézetre.</p>
-            </div>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
-            <div>
-              <strong class="text-white">Húzd be a letöltött fájlt:</strong>
-              <p class="text-neutral-400 text-xs mt-0.5">Jobb felül a Loop ikon ➔ <em>Fájlok</em> fül ➔ Keresd meg a letöltött csengőhangot és húzd a hangsávra.</p>
-            </div>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
-            <div>
-              <strong class="text-white">Exportálás csengőhangként:</strong>
-              <p class="text-neutral-400 text-xs mt-0.5">Kattints a bal felső lefelé nyílra (<em>Saját dalok</em>) ➔ tartsd hosszan lenyomva a projektet ➔ <em>Megosztás</em> ➔ <strong>Csengőhang</strong> ➔ majd válaszd a <strong>Használat csengőhangként</strong> lehetőséget!</p>
-            </div>
-          </li>
-        </ol>
-      </div>
-
-      <!-- Guide Tab 3: Computer (Mac & Windows) -->
-      <div id="guide-computer" class="guide-content hidden space-y-4">
-        <ol class="space-y-3 text-xs sm:text-sm text-neutral-300">
-          <li class="flex items-start gap-3">
-            <span class="w-6 h-6 rounded-full bg-ios-blue text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
-            <div>
-              <strong class="text-white">Mac (Finder):</strong>
-              <p class="text-neutral-400 text-xs mt-0.5">Csatlakoztasd az iPhone-t a Mac-hez, nyisd meg a Finder-t, és egyszerűen húzd a letöltött <code>.m4r</code> fájlt a telefonod ablakára.</p>
-            </div>
-          </li>
-          <li class="flex items-start gap-3">
-            <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
-            <div>
-              <strong class="text-white">Windows (iTunes):</strong>
-              <p class="text-neutral-400 text-xs mt-0.5">Indítsd el az iTunes-t, válaszd ki az iPhone ikonját ➔ <em>Hangok (Tones)</em> ➔ Húzd be a letöltött <code>.m4r</code> fájlt és kattints a <em>Szinkronizálás</em> gombra.</p>
             </div>
           </li>
         </ol>

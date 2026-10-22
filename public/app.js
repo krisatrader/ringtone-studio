@@ -1783,16 +1783,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === guideModal) guideModal.classList.add('hidden');
   });
 
-  guideTabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      guideTabs.forEach((t) => t.classList.remove('active'));
-      guideContents.forEach((c) => c.classList.add('hidden'));
+  if (guideTabs && guideTabs.length > 0) {
+    guideTabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        guideTabs.forEach((t) => t.classList.remove('active'));
+        guideContents.forEach((c) => c.classList.add('hidden'));
 
-      tab.classList.add('active');
-      const target = document.getElementById(`guide-${tab.dataset.guide}`);
-      if (target) target.classList.remove('hidden');
+        tab.classList.add('active');
+        const target = document.getElementById(`guide-${tab.dataset.guide}`);
+        if (target) target.classList.remove('hidden');
+      });
     });
-  });
+  }
 
   // Initialize
   checkBackendStatus().then(() => {
