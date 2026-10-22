@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="hu" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>iPhone Ringtone Studio | Spotify, YouTube, Apple Music & Lokális Zene konvertáló</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+            },
+            ios: {
+              blue: '#007AFF',
+              green: '#34C759',
+              orange: '#FF9500',
+              red: '#FF3B30',
+              purple: '#AF52DE',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-neutral-950 text-neutral-100 min-h-screen selection:bg-brand-500/30 selection:text-brand-100 antialiased font-sans">
+  
+  <!-- Subtle ambient glow backgrounds -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-tr from-brand-600/15 via-blue-600/15 to-emerald-500/10 blur-[130px] rounded-full"></div>
+    <div class="absolute top-[600px] -right-20 w-[600px] h-[400px] bg-purple-600/10 blur-[120px] rounded-full"></div>
+    <div class="absolute bottom-0 -left-20 w-[500px] h-[350px] bg-blue-600/10 blur-[120px] rounded-full"></div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 py-6 sm:py-10 flex flex-col min-h-screen">
+
+    <!-- Top Navigation Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-8 border-b border-white/5">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-brand-600 via-indigo-600 to-ios-blue flex items-center justify-center shadow-lg shadow-brand-500/25 ring-1 ring-white/20">
+          <i data-lucide="bell-ring" class="w-6 h-6 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Ringtone<span class="bg-gradient-to-r from-brand-500 via-indigo-400 to-blue-400 bg-clip-text text-transparent">Studio</span></h1>
+            <span class="text-[11px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30">iPhone .M4R</span>
+          </div>
+          <p class="text-xs text-neutral-400 font-medium">Spotify • YouTube Music • Apple Music • Lokális Audió</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <!-- Live status badge -->
+        <div id="backendStatusBadge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="backendStatusText">Kapcsolódás...</span>
+        </div>
+
+        <button id="guideBtn" class="flex items-center gap-2 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-neutral-200 border border-white/10 transition-all shadow-sm hover:border-white/20">
+          <i data-lucide="smartphone" class="w-4 h-4 text-brand-400"></i>
+          <span>iPhone Beállítási Útmutató</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 py-8 space-y-8">
+
+      <!-- SOURCE SELECTOR TABS -->
+      <section class="glass-card p-2 sm:p-2.5 rounded-2xl border border-white/10 max-w-2xl mx-auto shadow-2xl">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5" id="sourceTabs">
+          <button data-tab="upload" class="tab-btn active flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+            <span>Helyi Fájl</span>
+          </button>
+          <button data-tab="link" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="link" class="w-4 h-4"></i>
+            <span>Zenei Link</span>
+          </button>
+          <button data-tab="search" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="search" class="w-4 h-4"></i>
+            <span>Kereső</span>
+          </button>
+          <button data-tab="samples" class="tab-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all">
+            <i data-lucide="dices" class="w-4 h-4 text-emerald-400"></i>
+            <span>Minta Dalok</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB CONTENT CONTAINERS -->
+      <section class="max-w-3xl mx-auto">
+
+        <!-- TAB 1: LOCAL UPLOAD -->
+        <div id="tab-upload" class="tab-content">
+          <div id="dropZone" class="group relative border-2 border-dashed border-white/15 hover:border-brand-500/60 rounded-3xl p-8 sm:p-12 text-center transition-all bg-white/[0.02] hover:bg-brand-500/[0.03] cursor-pointer">
+            <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.wma" class="hidden">
+            <div class="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 group-hover:bg-brand-500/20 group-hover:border-brand-500/40 flex items-center justify-center mx-auto mb-4 transition-all group-hover:scale-110">
+              <i data-lucide="music" class="w-8 h-8 text-neutral-300 group-hover:text-brand-400"></i>
+            </div>
+            <h3 class="text-base sm:text-lg font-bold text-white mb-1">Húzd ide a zenefájlt, vagy kattints a tallózáshoz</h3>
+            <p class="text-xs sm:text-sm text-neutral-400 mb-4">Támogatott: MP3, WAV, M4A, AAC, FLAC, OGG (közvetlenül a böngészőből vágva)</p>
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 text-xs font-semibold text-white group-hover:bg-brand-600 transition-all">
+              <i data-lucide="folder-open" class="w-4 h-4"></i>
+              <span>Fájl kiválasztása a gépről vagy telefonról</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: LINK INPUT (SPOTIFY / YOUTUBE / APPLE MUSIC) -->
+        <div id="tab-link" class="tab-content hidden">
+          <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
+            
+            <div id="onlineModeBanner" class="hidden p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
+              <i data-lucide="info" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
+              <div class="text-neutral-300">
+                <span class="font-bold text-white">GitHub Pages Standalone Mód:</span> Az online stream-letöltéshez (YouTube / Spotify / Apple Music) háttérszerver szükséges. Helyi gépen indítsd el a <code>npm start</code> parancsot a teljes online eléréshez, vagy használj <strong>Helyi Fájlt</strong> és <strong>Minta Dalokat</strong>, amelyek 100%-ban működnek szerver nélkül is!
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
+                <i data-lucide="link-2" class="w-4 h-4 text-brand-400"></i>
+                <span>Másold be a zenei linket:</span>
+              </label>
+              <!-- Service badges -->
+              <div class="flex items-center gap-1.5 text-[11px] font-medium text-neutral-400">
+                <span class="px-2 py-0.5 rounded-md bg-emerald-950/60 text-emerald-400 border border-emerald-500/20">Spotify</span>
+                <span class="px-2 py-0.5 rounded-md bg-red-950/60 text-red-400 border border-red-500/20">YouTube</span>
+                <span class="px-2 py-0.5 rounded-md bg-rose-950/60 text-rose-400 border border-rose-500/20">Apple Music</span>
+              </div>
+            </div>
+
+            <form id="urlForm" class="flex flex-col sm:flex-row gap-3">
+              <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
+                  <i data-lucide="disc" class="w-5 h-5"></i>
+                </div>
+                <input type="text" id="urlInput" placeholder="pl. https://open.spotify.com/track/... vagy YouTube / Apple Music link" class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-white placeholder-neutral-500 outline-none transition-all">
+              </div>
+              <button type="submit" id="urlSubmitBtn" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 active:scale-95 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition-all shrink-0">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>Zene Betöltése</span>
+              </button>
+            </form>
+            <p class="text-xs text-neutral-400 flex items-center gap-1.5">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-neutral-500"></i>
+              <span>Tipp: Automatikusan kinyeri a dal metaadatait és a legmagasabb minőségű audiót készíti elő vágásra.</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- TAB 3: BUILT-IN MUSIC SEARCH -->
+        <div id="tab-search" class="tab-content hidden">
+          <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
+            
+            <div id="searchOnlineBanner" class="hidden p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
+              <i data-lucide="info" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
+              <div class="text-neutral-300">
+                <span class="font-bold text-white">Élő keresés:</span> A dalok közötti online keresés a háttérszerveren fut (<code>npm start</code>). Ha a GitHub Pages statikus változatát böngészed, a <strong>Helyi Fájl</strong> fülön bármelyik saját zenédet azonnal megvághatod!
+              </div>
+            </div>
+
+            <label class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-brand-400"></i>
+              <span>Keresés előadó vagy dalcím alapján:</span>
+            </label>
+            <form id="searchForm" class="flex gap-3">
+              <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
+                  <i data-lucide="search" class="w-5 h-5"></i>
+                </div>
+                <input type="text" id="searchInput" placeholder="pl. The Weeknd Blinding Lights, Queen, Billie Eilish..." class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-white placeholder-neutral-500 outline-none transition-all">
+              </div>
+              <button type="submit" id="searchSubmitBtn" class="px-6 py-3.5 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-sm flex items-center gap-2 transition-all shrink-0">
+                <i data-lucide="search" class="w-4 h-4"></i>
+                <span>Keresés</span>
+              </button>
+            </form>
+
+            <!-- Search Results Container -->
+            <div id="searchResults" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+              <div class="text-center py-8 text-neutral-500 text-sm">
+                Írj be egy dalcímet vagy előadót a fenti mezőbe a kereséshez.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: SAMPLES / DEMO SONGS -->
+        <div id="tab-samples" class="tab-content hidden">
+          <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                  <i data-lucide="dices" class="w-4 h-4 text-emerald-400"></i>
+                  <span>Azonnali Teszt Minta Dalok</span>
+                </h3>
+                <p class="text-xs text-neutral-400">Kattints bármelyik dalra az azonnali vágás és csengőhang teszteléshez!</p>
+              </div>
+              <span class="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                Közvetlen előtöltve
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="samplesList">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ACTIVE WORKSPACE / AUDIO CUTTER STUDIO -->
+      <section id="cutterSection" class="hidden transition-all duration-300">
+        <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/15 shadow-2xl relative overflow-hidden space-y-6">
+          
+          <!-- Top Active Track Information Bar -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-white/10">
+            <div class="flex items-center gap-4">
+              <div class="relative w-16 h-16 rounded-2xl overflow-hidden bg-neutral-900 border border-white/15 shrink-0 shadow-md">
+                <img id="trackThumb" src="" alt="" class="w-full h-full object-cover hidden">
+                <div id="trackThumbFallback" class="w-full h-full flex items-center justify-center bg-gradient-to-tr from-brand-700 to-indigo-800 text-white">
+                  <i data-lucide="music-2" class="w-7 h-7"></i>
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 id="trackTitle" class="text-lg sm:text-xl font-bold text-white line-clamp-1">Dal címe</h2>
+                  <span id="trackSourceBadge" class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/10 text-neutral-300">Forrás</span>
+                </div>
+                <p id="trackArtist" class="text-xs sm:text-sm text-neutral-400 font-medium">Előadó neve</p>
+                <p id="trackTotalDuration" class="text-xs text-neutral-500 font-mono mt-0.5">Teljes hossz: 03:24</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button id="resetTrackBtn" class="text-xs font-semibold px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all flex items-center gap-1.5">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>Másik zene</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- iPhone Ringtone Duration Guard Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs">
+            <div class="flex items-center gap-2.5">
+              <div class="w-7 h-7 rounded-lg bg-brand-500/20 flex items-center justify-center text-brand-300 shrink-0">
+                <i data-lucide="info" class="w-4 h-4"></i>
+              </div>
+              <div>
+                <span class="font-semibold text-brand-200">Apple iPhone Szabvány:</span>
+                <span class="text-neutral-300"> Az iOS csengőhangok hossza legfeljebb <strong class="text-white">40 másodperc</strong> lehet (.m4r formátumban).</span>
+              </div>
+            </div>
+            <!-- Preset switcher buttons -->
+            <div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
+              <button id="presetRingtoneBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-brand-600 text-white transition-all">
+                🔔 Csengőhang (30s)
+              </button>
+              <button id="presetAlertBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-neutral-400 hover:text-white transition-all">
+                💬 Értesítő (10s)
+              </button>
+              <button id="presetHookBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-neutral-400 hover:text-white transition-all">
+                🎯 Refrén (30s)
+              </button>
+            </div>
+          </div>
+
+          <!-- WAVEFORM CANVAS CONTAINER -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs text-neutral-400 font-mono px-1">
+              <span id="currentTimeDisplay">00:00.0</span>
+              <div class="flex items-center gap-3">
+                <span id="zoomLevelDisplay" class="text-[11px]">Nagyítás: 1x</span>
+                <div class="flex items-center gap-1">
+                  <button id="zoomOutBtn" class="p-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300" title="Kicsinyítés">
+                    <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
+                  </button>
+                  <button id="zoomInBtn" class="p-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300" title="Nagyítás">
+                    <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                  </button>
+                </div>
+              </div>
+              <span id="totalTimeDisplay">00:00.0</span>
+            </div>
+
+            <!-- Visual interactive waveform viewport -->
+            <div class="relative w-full h-36 bg-black/60 rounded-2xl border border-white/15 overflow-hidden select-none cursor-pointer" id="waveformContainer">
+              <canvas id="waveformCanvas" class="w-full h-full block"></canvas>
+
+              <!-- Loading overlay -->
+              <div id="waveformLoading" class="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                <div class="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-xs font-semibold text-neutral-300">Hullámforma generálása...</span>
+              </div>
+            </div>
+
+            <!-- Waveform Legend & Hints -->
+            <div class="flex items-center justify-between text-[11px] text-neutral-400 px-1 pt-1">
+              <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span> Kijelölt csengőhang szakasz</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-ios-blue"></span> Lejátszási mutató</span>
+              </div>
+              <span class="text-neutral-500">Húzd a szélét a kezdő/végpont finomhangolásához!</span>
+            </div>
+          </div>
+
+          <!-- AUDIO CONTROLS & TIMING DASHBOARD -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            
+            <!-- Column 1: Playback Buttons -->
+            <div class="flex items-center gap-2 bg-white/[0.03] p-3 rounded-2xl border border-white/10">
+              <button id="playPauseBtn" class="w-12 h-12 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 active:scale-95 text-white flex items-center justify-center shadow-lg shadow-brand-600/30 transition-all shrink-0">
+                <i data-lucide="play" class="w-6 h-6 ml-0.5" id="playIcon"></i>
+              </button>
+              <div class="flex-1 flex flex-col gap-1.5">
+                <button id="playSelectionBtn" class="w-full py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/15 active:scale-95 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-all">
+                  <i data-lucide="scissors" class="w-3.5 h-3.5 text-brand-400"></i>
+                  <span>Kijelölés Lejátszása</span>
+                </button>
+                <button id="loopBtn" class="w-full py-1.5 px-3 rounded-lg bg-white/5 hover:bg-white/10 text-xs font-semibold text-neutral-300 flex items-center justify-center gap-1.5 transition-all" title="Csengőhang ismétlődő hatásának ellenőrzése">
+                  <i data-lucide="repeat" class="w-3.5 h-3.5" id="loopIcon"></i>
+                  <span id="loopText">Végtelenített Loop: KI</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Column 2: Precise Time Points -->
+            <div class="bg-white/[0.03] p-3 rounded-2xl border border-white/10 flex items-center justify-between gap-3">
+              <div class="flex-1 text-center">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Kezdőpont</span>
+                <div class="flex items-center justify-center gap-1">
+                  <button id="startNudgeMinus" class="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white" title="-0.5s">
+                    <i data-lucide="minus" class="w-3 h-3"></i>
+                  </button>
+                  <span id="startTimeVal" class="text-sm font-mono font-bold text-white px-1">00:00.0</span>
+                  <button id="startNudgePlus" class="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white" title="+0.5s">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="w-px h-10 bg-white/10"></div>
+
+              <div class="flex-1 text-center">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Végpont</span>
+                <div class="flex items-center justify-center gap-1">
+                  <button id="endNudgeMinus" class="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white" title="-0.5s">
+                    <i data-lucide="minus" class="w-3 h-3"></i>
+                  </button>
+                  <span id="endTimeVal" class="text-sm font-mono font-bold text-white px-1">00:30.0</span>
+                  <button id="endNudgePlus" class="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white" title="+0.5s">
+                    <i data-lucide="plus" class="w-3 h-3"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Column 3: Duration Status Badge -->
+            <div class="bg-white/[0.03] p-3 rounded-2xl border border-white/10 flex flex-col justify-center items-center text-center">
+              <span class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 mb-1">Csengőhang Hossza</span>
+              <div class="flex items-baseline gap-1">
+                <span id="selectedDurationVal" class="text-2xl font-mono font-black text-brand-400">30.0</span>
+                <span class="text-xs font-bold text-neutral-400">mp</span>
+              </div>
+              <div id="durationStatusBadge" class="mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <i data-lucide="check" class="w-3 h-3"></i>
+                <span>Tökéletes méret (Max 40 mp)</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- AUDIO REFINEMENT CONTROLS (FADE & VOLUME BOOST) -->
+          <div class="pt-4 border-t border-white/10 space-y-4">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-2">
+              <i data-lucide="sliders" class="w-3.5 h-3.5 text-brand-400"></i>
+              <span>Hangzás & Effekt Finomhangolás</span>
+            </h4>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              
+              <!-- Fade In -->
+              <div class="bg-white/[0.02] p-3.5 rounded-2xl border border-white/10">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <i data-lucide="trending-up" class="w-3.5 h-3.5 text-brand-400"></i>
+                    <span>Fade In (Felhangosodás)</span>
+                  </span>
+                  <span id="fadeInVal" class="text-xs font-mono font-bold text-brand-300">1.0s</span>
+                </div>
+                <input type="range" id="fadeInInput" min="0" max="5" step="0.5" value="1.0" class="w-full accent-brand-500 h-1.5 bg-neutral-800 rounded-lg cursor-pointer">
+                <div class="flex justify-between text-[10px] text-neutral-500 mt-1">
+                  <span>Azonnal (0s)</span>
+                  <span>Lágy (5s)</span>
+                </div>
+              </div>
+
+              <!-- Fade Out -->
+              <div class="bg-white/[0.02] p-3.5 rounded-2xl border border-white/10">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <i data-lucide="trending-down" class="w-3.5 h-3.5 text-brand-400"></i>
+                    <span>Fade Out (Lehalkulás)</span>
+                  </span>
+                  <span id="fadeOutVal" class="text-xs font-mono font-bold text-brand-300">2.0s</span>
+                </div>
+                <input type="range" id="fadeOutInput" min="0" max="5" step="0.5" value="2.0" class="w-full accent-brand-500 h-1.5 bg-neutral-800 rounded-lg cursor-pointer">
+                <div class="flex justify-between text-[10px] text-neutral-500 mt-1">
+                  <span>Hirtelen (0s)</span>
+                  <span>Finom (5s)</span>
+                </div>
+              </div>
+
+              <!-- Volume Boost & Normalization -->
+              <div class="bg-white/[0.02] p-3.5 rounded-2xl border border-white/10">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-neutral-300 flex items-center gap-1.5">
+                    <i data-lucide="volume-2" class="w-3.5 h-3.5 text-ios-blue"></i>
+                    <span>Hangerő Erősítés</span>
+                  </span>
+                  <span id="volumeVal" class="text-xs font-mono font-bold text-ios-blue">125%</span>
+                </div>
+                <input type="range" id="volumeInput" min="0.5" max="2.0" step="0.25" value="1.25" class="w-full accent-ios-blue h-1.5 bg-neutral-800 rounded-lg cursor-pointer">
+                <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5">
+                  <label class="flex items-center gap-2 cursor-pointer text-[11px] text-neutral-400 hover:text-white select-none">
+                    <input type="checkbox" id="normalizeInput" class="rounded accent-brand-500">
+                    <span>EBU R128 Normalizálás</span>
+                  </label>
+                  <span class="text-[10px] text-neutral-500">Tiszta hangzás</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- EXPORT & DOWNLOAD PANEL -->
+          <div class="pt-5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            
+            <!-- Format selector -->
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold text-neutral-400">Kimeneti formátum:</span>
+              <div class="flex items-center gap-1 bg-black/50 p-1 rounded-xl border border-white/10" id="formatSelector">
+                <button data-format="m4r" class="format-btn active px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-brand-600 to-indigo-600 shadow transition-all flex items-center gap-1.5">
+                  <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+                  <span>.M4R (iPhone)</span>
+                </button>
+                <button data-format="mp3" class="format-btn px-3 py-1.5 rounded-lg text-xs font-semibold text-neutral-400 hover:text-white transition-all flex items-center gap-1.5">
+                  <i data-lucide="music" class="w-3.5 h-3.5"></i>
+                  <span>.MP3 (Univerzális)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Download Action Button -->
+            <button id="convertDownloadBtn" class="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 active:scale-95 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-xl shadow-emerald-500/25 transition-all">
+              <i data-lucide="sparkles" class="w-5 h-5 text-white animate-pulse"></i>
+              <span id="convertBtnText">Csengőhang Letöltése (.m4r)</span>
+            </button>
+
+          </div>
+
+        </div>
+      </section>
+
+      <!-- FEATURE CARDS / TRUST BADGES -->
+      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+        
+        <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2">
+          <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
+            <i data-lucide="zap" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white">Apple M4R Szabvány</h4>
+          <p class="text-xs text-neutral-400 leading-relaxed">
+            Közvetlen AAC kódolás, azonnal kompatibilis az összes iOS verzióval (iPhone 11 - iPhone 16 Pro, iOS 14 - iOS 18+).
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <i data-lucide="music" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white">Minden Forrás Támogatva</h4>
+          <p class="text-xs text-neutral-400 leading-relaxed">
+            Másolj be Spotify dalt, YouTube videót, Apple Music linket, vagy húzd be a saját MP3/WAV/FLAC fájlodat.
+          </p>
+        </div>
+
+        <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <h4 class="text-sm font-bold text-white">100% Ingyenes & Korlátlan</h4>
+          <p class="text-xs text-neutral-400 leading-relaxed">
+            Nincs vízjel, nincs regisztráció. Végtelenített loop előnézet és hangerő-erősítés közvetlenül a böngészőben.
+          </p>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="pt-8 pb-4 border-t border-white/5 text-center text-xs text-neutral-500 space-y-2">
+      <p>iPhone Ringtone Studio • Nyílt forráskódú modern Apple segédeszköz</p>
+      <p class="text-[11px] text-neutral-600">A letöltött .m4r fájlokat számítógép nélkül, közvetlenül a GarageBand iOS alkalmazással is beállíthatod csengőhangként.</p>
+    </footer>
+
+  </div>
+
+  <!-- MODAL: IPHONE STEP-BY-STEP INSTALLATION GUIDE -->
+  <div id="guideModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="glass-card bg-neutral-900/95 border border-white/15 max-w-2xl w-full rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex items-center justify-between pb-4 border-b border-white/10">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/30 flex items-center justify-center text-brand-400">
+            <i data-lucide="smartphone" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white">Hogyan állítsd be az iPhone-odon?</h3>
+            <p class="text-xs text-neutral-400">3 egyszerű módszer a letöltött .m4r csengőhang aktiválására</p>
+          </div>
+        </div>
+        <button id="closeGuideBtn" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-neutral-400 hover:text-white transition-all">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Guide Tabs -->
+      <div class="grid grid-cols-3 gap-2 p-1.5 rounded-2xl bg-black/40 border border-white/10" id="guideTabs">
+        <button data-guide="garageband" class="guide-tab-btn active py-2.5 px-3 rounded-xl text-xs font-bold transition-all">
+          📱 iPhone-on (GarageBand)
+        </button>
+        <button data-guide="mac" class="guide-tab-btn py-2.5 px-3 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white transition-all">
+          🍏 Mac (Finder)
+        </button>
+        <button data-guide="windows" class="guide-tab-btn py-2.5 px-3 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white transition-all">
+          💻 Windows (iTunes)
+        </button>
+      </div>
+
+      <!-- Guide Tab 1: GarageBand (No PC needed) -->
+      <div id="guide-garageband" class="guide-content space-y-4">
+        <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs text-brand-200">
+          ✨ <strong>Legjobb és leggyorsabb módszer!</strong> Nincs szükség számítógépre vagy kábelre. 100%-ban az iPhone-ról megoldható az ingyenes Apple GarageBand appal.
+        </div>
+
+        <ol class="space-y-3.5 text-xs sm:text-sm text-neutral-300">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+            <div>
+              <strong class="text-white">Töltsd le a csengőhangot:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Kattints az oldalon a „Csengőhang Letöltése” gombra a Safari-ban. A fájl a telefonod <em>Fájlok (Files) / Letöltések</em> mappájába kerül.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+            <div>
+              <strong class="text-white">Nyisd meg a GarageBand alkalmazást:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Ha nincs fent, ingyenesen letöltheted az App Store-ból. Nyisd meg, és válassz egy tetszőleges hangszert (pl. <em>Hangrögzítő / Audio Recorder</em>).</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+            <div>
+              <strong class="text-white">Válts Sáv nézetre & Húzd be a fájlt:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Kattints a bal felső sáv ikonra (téglalapok). Majd jobb felül a hurok (Loop) ikonra -> <em>Fájlok</em> fül -> Keresd meg a letöltött csengőhangot és húzd rá a hangsávra.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">4</span>
+            <div>
+              <strong class="text-white">Exportálás Csengőhangként:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Érintsd meg a bal felső lefelé mutató nyilat (<em>Saját dalok</em>). A dalok listájában tartsd hosszan lenyomva a projektet -> válaszd a <em>Megosztás</em> -> <strong>Csengőhang</strong> lehetőséget -> Exportálás!</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">5</span>
+            <div>
+              <strong class="text-emerald-400">Kész! Állítsd be a hangot:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Az iPhone azonnal felajánlja a használatot, vagy megnyithatod a <em>Beállítások -> Hangok és haptika -> Csengőhang</em> menüt, ahol a saját dalod legfelül fog megjelenni.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Guide Tab 2: Mac Finder -->
+      <div id="guide-mac" class="guide-content hidden space-y-4">
+        <ol class="space-y-3 text-xs sm:text-sm text-neutral-300">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-ios-blue text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+            <div>
+              <strong class="text-white">Csatlakoztasd az iPhone-t a Mac-hez:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">USB kábellel vagy azonos Wi-Fi hálózaton keresztül.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-ios-blue text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+            <div>
+              <strong class="text-white">Nyisd meg a Finder-t:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Kattints az iPhone-odra a bal oldalsávban a <em>Helyek</em> alatt.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-ios-blue text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+            <div>
+              <strong class="text-white">Egyszerű Húzás & Ejtés (Drag & Drop):</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Fogd a letöltött <code>.m4r</code> fájlt, és egyszerűen húzd rá a Finder iPhone ablakára! A macOS automatikusan hozzáadja a csengőhangok közé.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <!-- Guide Tab 3: Windows iTunes -->
+      <div id="guide-windows" class="guide-content hidden space-y-4">
+        <ol class="space-y-3 text-xs sm:text-sm text-neutral-300">
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+            <div>
+              <strong class="text-white">Indítsd el az iTunes-t a PC-n:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Csatlakoztasd az iPhone-t USB kábellel a számítógéphez.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+            <div>
+              <strong class="text-white">Kattints az iPhone ikonjára:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">A bal oldali menüben kattints a <em>Hangok (Tones)</em> fülre.</p>
+            </div>
+          </li>
+          <li class="flex items-start gap-3">
+            <span class="w-6 h-6 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+            <div>
+              <strong class="text-white">Húzd be a .m4r fájlt:</strong>
+              <p class="text-neutral-400 text-xs mt-0.5">Húzd a letöltött <code>.m4r</code> fájlt a Hangok listába, majd kattints a <em>Szinkronizálás (Sync)</em> gombra jobb lent.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+
+      <div class="pt-4 border-t border-white/10 flex justify-end">
+        <button id="gotItGuideBtn" class="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-xs transition-all">
+          Értem, köszönöm!
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
