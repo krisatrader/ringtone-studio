@@ -72,7 +72,7 @@
         <!-- Live status badge -->
         <div id="backendStatusBadge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span id="backendStatusText">Kapcsolódás...</span>
+          <span id="backendStatusText">Webes Zene Motor Aktív</span>
         </div>
 
         <button id="guideBtn" class="flex items-center gap-2 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-neutral-200 border border-white/10 transition-all shadow-sm hover:border-white/20">
@@ -130,10 +130,10 @@
         <div id="tab-link" class="tab-content hidden">
           <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
             
-            <div id="onlineModeBanner" class="hidden p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
-              <i data-lucide="info" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
+            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
+              <i data-lucide="sparkles" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
               <div class="text-neutral-300">
-                <span class="font-bold text-white">GitHub Pages Standalone Mód:</span> Az online stream-letöltéshez (YouTube / Spotify / Apple Music) háttérszerver szükséges. Helyi gépen indítsd el a <code>npm start</code> parancsot a teljes online eléréshez, vagy használj <strong>Helyi Fájlt</strong> és <strong>Minta Dalokat</strong>, amelyek 100%-ban működnek szerver nélkül is!
+                <span class="font-bold text-white">Univerzális Zenei Támogatás:</span> Illessz be egy <strong>Spotify dal</strong>, <strong>YouTube / YouTube Music videó</strong> vagy <strong>Apple Music</strong> linket! A rendszer automatikusan kinyeri a dal metaadatait és az audió adatfolyamot, majd betölti a vágóba.
               </div>
             </div>
 
@@ -173,10 +173,10 @@
         <div id="tab-search" class="tab-content hidden">
           <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
             
-            <div id="searchOnlineBanner" class="hidden p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
-              <i data-lucide="info" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
+            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
+              <i data-lucide="music" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
               <div class="text-neutral-300">
-                <span class="font-bold text-white">Élő keresés:</span> A dalok közötti online keresés a háttérszerveren fut (<code>npm start</code>). Ha a GitHub Pages statikus változatát böngészed, a <strong>Helyi Fájl</strong> fülön bármelyik saját zenédet azonnal megvághatod!
+                <span class="font-bold text-white">Azonnali Kereső:</span> Keress bármelyik nemzetközi vagy hazai előadó dalaira! A kiválasztott dalt egy kattintással közvetlenül betöltheted a hullámforma vágóba.
               </div>
             </div>
 
