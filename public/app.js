@@ -1743,8 +1743,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Show reminder for iPhone setup
       setTimeout(() => {
-        showToast('Tipp: Kattints fent az "iPhone Beállítási Útmutató"-ra a csengőhang aktiválásához!', 'info');
-      }, 2000);
+        showToast('Tipp: A letöltés után kattints a „Továbbiak...” lehetőségre, majd a „Használat csengőhangként” opcióra!', 'info');
+      }, 1500);
 
     } catch (err) {
       showToast(err.message, 'error');
