@@ -136,59 +136,61 @@ async function probeAudio(filePath) {
 }
 
 /**
- * Resolve Spotify track metadata
+ * Resolve Spotify track metadata via embed NextData JSON and oEmbed
  */
 async function resolveSpotify(url) {
   let title = '';
   let artist = '';
   let thumbnail = '';
+  let previewUrl = '';
+  let duration = 0;
 
-  try {
-    // Try Spotify oEmbed first
-    const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
-    const oembedRes = await fetch(oembedUrl);
-    if (oembedRes.ok) {
-      const oembedData = await oembedRes.json();
-      if (oembedData.title) title = oembedData.title;
-      if (oembedData.thumbnail_url) thumbnail = oembedData.thumbnail_url;
-    }
-  } catch (err) {
-    console.warn('Spotify oEmbed failed, falling back to scraping:', err.message);
-  }
-
-  try {
-    // Scrape HTML for meta tags
-    const htmlRes = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-
-    if (htmlRes.ok) {
-      const html = await htmlRes.text();
-      
-      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i);
-      if (ogTitleMatch && !title) title = ogTitleMatch[1];
-
-      const musicianMatch = html.match(/<meta property="music:musician_description" content="([^"]+)"/i);
-      if (musicianMatch) {
-        artist = musicianMatch[1];
-      } else {
-        const ogDescMatch = html.match(/<meta property="og:description" content="([^"]+)"/i);
-        if (ogDescMatch) {
-          const parts = ogDescMatch[1].split(' · ');
-          if (parts.length > 0 && parts[0]) artist = parts[0];
+  // Extract track ID (supports https://open.spotify.com/track/..., /intl-hu/track/..., spotify:track:...)
+  const idMatch = url.match(/track[/:]([a-zA-Z0-9]+)/i);
+  if (idMatch) {
+    const trackId = idMatch[1];
+    try {
+      const embedRes = await fetch(`https://open.spotify.com/embed/track/${trackId}`, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+      if (embedRes.ok) {
+        const html = await embedRes.text();
+        const nextData = html.match(/<script id="__NEXT_DATA__"[^>]*>([^<]+)<\/script>/i);
+        if (nextData) {
+          const parsed = JSON.parse(nextData[1]);
+          const entity = parsed.props?.pageProps?.state?.data?.entity;
+          if (entity) {
+            title = entity.name || entity.title || '';
+            artist = entity.artists?.map((a) => a.name).join(', ') || '';
+            thumbnail = entity.visualIdentity?.image?.[0]?.url || entity.visualIdentity?.image?.[2]?.url || '';
+            previewUrl = entity.audioPreview?.url || '';
+            duration = entity.duration ? entity.duration / 1000 : 0;
+          }
         }
       }
-
-      const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
-      if (imgMatch && !thumbnail) thumbnail = imgMatch[1];
+    } catch (err) {
+      console.warn('Spotify embed extraction error:', err.message);
     }
-  } catch (err) {
-    console.warn('Spotify HTML scrape failed:', err.message);
   }
 
-  return { title: title || 'Spotify Zene', artist: artist || 'Előadó', thumbnail };
+  // Fallback to oEmbed if needed
+  if (!title) {
+    try {
+      const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
+      const oembedRes = await fetch(oembedUrl);
+      if (oembedRes.ok) {
+        const oembedData = await oembedRes.json();
+        if (oembedData.title) title = oembedData.title;
+        if (oembedData.thumbnail_url && !thumbnail) thumbnail = oembedData.thumbnail_url;
+      }
+    } catch (err) {
+      console.warn('Spotify oEmbed failed:', err.message);
+    }
+  }
+
+  return { title: title || 'Spotify Zene', artist: artist || '', thumbnail, previewUrl, duration };
 }
 
 /**
@@ -198,43 +200,65 @@ async function resolveAppleMusic(url) {
   let title = '';
   let artist = '';
   let thumbnail = '';
+  let previewUrl = '';
+  let duration = 0;
 
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  // 1. Try iTunes lookup if track ID present
+  const trackIdMatch = url.match(/[?&]i=(\d+)/i) || url.match(/\/album\/[^/]+\/(\d+)/i);
+  if (trackIdMatch) {
+    try {
+      const itunesRes = await fetch(`https://itunes.apple.com/lookup?id=${trackIdMatch[1]}`);
+      if (itunesRes.ok) {
+        const iData = await itunesRes.json();
+        if (iData.results && iData.results.length > 0) {
+          const item = iData.results[0];
+          title = item.trackName || item.collectionName || '';
+          artist = item.artistName || '';
+          thumbnail = (item.artworkUrl100 || '').replace('100x100bb', '600x600bb');
+          previewUrl = item.previewUrl || '';
+          duration = item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30;
+        }
       }
-    });
-
-    if (res.ok) {
-      const html = await res.text();
-
-      const appleTitleMatch = html.match(/<meta name="apple:title" content="([^"]+)"/i);
-      const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i);
-      if (appleTitleMatch) {
-        title = appleTitleMatch[1];
-      } else if (ogTitleMatch) {
-        title = ogTitleMatch[1].replace(/ by [^|]+ on Apple Music.*$/i, '');
-      }
-
-      const artistMatch = html.match(/<meta property="music:musician" content="https:\/\/music\.apple\.com\/[^/]+\/artist\/([^/]+)\//i)
-        || html.match(/by ([^|]+) on Apple\s*Music/i);
-      if (artistMatch) {
-        artist = decodeURIComponent(artistMatch[1].replace(/-/g, ' '));
-      }
-
-      const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
-      if (imgMatch) thumbnail = imgMatch[1];
+    } catch (iErr) {
+      console.warn('iTunes lookup error:', iErr.message);
     }
-  } catch (err) {
-    console.warn('Apple music scrape error:', err.message);
   }
 
-  return { title: title || 'Apple Music Dal', artist: artist || 'Előadó', thumbnail };
+  // 2. HTML scrape fallback
+  if (!title) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (res.ok) {
+        const html = await res.text();
+        const ogTitleMatch = html.match(/<meta property="og:title" content="([^"]+)"/i);
+        if (ogTitleMatch) {
+          const raw = ogTitleMatch[1];
+          const parts = raw.split(/\s+by\s+|\s+on Apple/i);
+          if (parts.length >= 2) {
+            title = parts[0].trim();
+            artist = parts[1].replace(/on Apple\s*Music.*$/i, '').trim();
+          } else {
+            title = raw;
+          }
+        }
+        const imgMatch = html.match(/<meta property="og:image" content="([^"]+)"/i);
+        if (imgMatch && !thumbnail) thumbnail = imgMatch[1];
+      }
+    } catch (err) {
+      console.warn('Apple music scrape error:', err.message);
+    }
+  }
+
+  return { title: title || 'Apple Music Dal', artist: artist || '', thumbnail, previewUrl, duration };
 }
 
 /**
- * Download audio using yt-dlp
+ * Download audio using yt-dlp safely
  */
 async function downloadWithYtDlp(targetUrlOrSearch, outputId) {
   const targetPath = path.join(TEMP_DIR, `${outputId}.mp3`);
@@ -246,21 +270,24 @@ async function downloadWithYtDlp(targetUrlOrSearch, outputId) {
     '-o', path.join(TEMP_DIR, `${outputId}.%(ext)s`),
     '--no-playlist',
     '--max-filesize', '60M',
+    '--no-warnings',
     targetUrlOrSearch
   ];
 
   await runProcess('yt-dlp', args);
 
   if (!fs.existsSync(targetPath)) {
-    // Check if another extension was produced
-    const files = fs.readdirSync(TEMP_DIR).filter(f => f.startsWith(outputId));
-    if (files.length > 0) {
-      const actualFile = path.join(TEMP_DIR, files[0]);
+    // Check if another extension was produced, excluding partial downloads
+    const candidates = fs.readdirSync(TEMP_DIR).filter(
+      (f) => f.startsWith(outputId) && !f.endsWith('.part') && !f.endsWith('.ytdl')
+    );
+    if (candidates.length > 0) {
+      const actualFile = path.join(TEMP_DIR, candidates[0]);
       if (actualFile !== targetPath) {
         fs.renameSync(actualFile, targetPath);
       }
     } else {
-      throw new Error('A hang letöltése sikertelen volt.');
+      throw new Error('A hangfájl letöltése sikertelen volt.');
     }
   }
 
@@ -425,20 +452,35 @@ app.post('/api/resolve', async (req, res) => {
     const isApple = /music\.apple\.com/i.test(url);
     const isYouTube = /youtube\.com|youtu\.be/i.test(url);
 
+    let spotifyMeta = null;
+    let appleMeta = null;
+
     if (isSpotify) {
       source = 'Spotify';
-      const meta = await resolveSpotify(url);
-      title = meta.title;
-      artist = meta.artist;
-      thumbnail = meta.thumbnail;
-      searchQueryOrUrl = `ytsearch1:${artist} - ${title} official audio`;
+      spotifyMeta = await resolveSpotify(url);
+      title = spotifyMeta.title;
+      artist = spotifyMeta.artist;
+      thumbnail = spotifyMeta.thumbnail;
+      if (artist && title) {
+        searchQueryOrUrl = `ytsearch1:${artist} - ${title} official audio`;
+      } else if (title) {
+        searchQueryOrUrl = `ytsearch1:${title} official audio`;
+      } else {
+        searchQueryOrUrl = `ytsearch1:${url}`;
+      }
     } else if (isApple) {
       source = 'Apple Music';
-      const meta = await resolveAppleMusic(url);
-      title = meta.title;
-      artist = meta.artist;
-      thumbnail = meta.thumbnail;
-      searchQueryOrUrl = `ytsearch1:${artist} - ${title} audio`;
+      appleMeta = await resolveAppleMusic(url);
+      title = appleMeta.title;
+      artist = appleMeta.artist;
+      thumbnail = appleMeta.thumbnail;
+      if (artist && title) {
+        searchQueryOrUrl = `ytsearch1:${artist} - ${title} audio`;
+      } else if (title) {
+        searchQueryOrUrl = `ytsearch1:${title} audio`;
+      } else {
+        searchQueryOrUrl = `ytsearch1:${url}`;
+      }
     } else if (isYouTube) {
       source = /music\.youtube\.com/i.test(url) ? 'YouTube Music' : 'YouTube';
       // Fast metadata extraction with yt-dlp
@@ -458,8 +500,50 @@ app.post('/api/resolve', async (req, res) => {
       searchQueryOrUrl = `ytsearch1:${url}`;
     }
 
-    // Download audio via yt-dlp
-    const downloadedPath = await downloadWithYtDlp(searchQueryOrUrl, sessionId);
+    // Download audio via yt-dlp with fallback to direct preview streams
+    let downloadedPath = null;
+    try {
+      downloadedPath = await downloadWithYtDlp(searchQueryOrUrl, sessionId);
+    } catch (ytErr) {
+      console.warn('yt-dlp download failed, checking fallback audio stream:', ytErr.message);
+
+      // Fallback 1: Spotify official preview stream
+      if (spotifyMeta?.previewUrl) {
+        try {
+          const pRes = await fetch(spotifyMeta.previewUrl);
+          if (pRes.ok) {
+            const buf = Buffer.from(await pRes.arrayBuffer());
+            const targetPath = path.join(TEMP_DIR, `${sessionId}.mp3`);
+            fs.writeFileSync(targetPath, buf);
+            downloadedPath = targetPath;
+            console.log('Successfully saved fallback Spotify preview stream:', targetPath);
+          }
+        } catch (pErr) {
+          console.warn('Spotify fallback download failed:', pErr.message);
+        }
+      }
+
+      // Fallback 2: Apple Music official preview stream
+      if (!downloadedPath && appleMeta?.previewUrl) {
+        try {
+          const aRes = await fetch(appleMeta.previewUrl);
+          if (aRes.ok) {
+            const buf = Buffer.from(await aRes.arrayBuffer());
+            const targetPath = path.join(TEMP_DIR, `${sessionId}.mp3`);
+            fs.writeFileSync(targetPath, buf);
+            downloadedPath = targetPath;
+            console.log('Successfully saved fallback Apple Music preview stream:', targetPath);
+          }
+        } catch (aErr) {
+          console.warn('Apple Music fallback download failed:', aErr.message);
+        }
+      }
+
+      if (!downloadedPath) {
+        throw ytErr;
+      }
+    }
+
     const probe = await probeAudio(downloadedPath);
 
     if (!title) title = probe.title || 'Zeneszám';
@@ -713,11 +797,12 @@ app.get('/api/download/:file', (req, res) => {
   const ext = path.extname(file);
   const downloadName = customName ? `${customName}${ext}` : file;
 
-  let contentType = 'audio/x-m4r';
-  if (ext === '.mp3') contentType = 'audio/mpeg';
+  let contentType = (ext === '.mp3') ? 'audio/mpeg' : 'audio/mp4';
+  const safeAsciiName = downloadName.replace(/[^\w.-]/g, '_');
 
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(downloadName)}"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeAsciiName}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`);
   res.setHeader('Content-Type', contentType);
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition, Content-Length');
   fs.createReadStream(filePath).pipe(res);
 });
 
