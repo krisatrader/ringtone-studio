@@ -2,7 +2,7 @@
 <html lang="hu" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>iPhone Ringtone Studio | Spotify, YouTube, Apple Music & Lokális Zene konvertáló</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -273,15 +273,16 @@
               </div>
             </div>
             <!-- Preset switcher buttons -->
-            <div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10">
-              <button id="presetRingtoneBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-brand-600 text-white transition-all">
+            <div class="flex items-center gap-1.5 bg-black/40 p-1.5 rounded-xl border border-white/10 flex-wrap">
+              <button id="presetHookBtn" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-brand-600 via-indigo-600 to-pink-600 text-white shadow-md shadow-brand-500/25 flex items-center gap-1.5 active:scale-95 transition-all" title="A dal legdinamikusabb, legenergikusabb refrén szakaszának automatikus felismerése">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-yellow-300 animate-pulse"></i>
+                <span>🎯 Refrén Kijelölése (AI)</span>
+              </button>
+              <button id="presetRingtoneBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-white/10 hover:bg-white/15 text-white transition-all">
                 🔔 Csengőhang (30s)
               </button>
-              <button id="presetAlertBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-neutral-400 hover:text-white transition-all">
+              <button id="presetAlertBtn" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-neutral-400 hover:text-white transition-all">
                 💬 Értesítő (10s)
-              </button>
-              <button id="presetHookBtn" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-neutral-400 hover:text-white transition-all">
-                🎯 Refrén (30s)
               </button>
             </div>
           </div>
@@ -318,10 +319,35 @@
             <!-- Waveform Legend & Hints -->
             <div class="flex items-center justify-between text-[11px] text-neutral-400 px-1 pt-1">
               <div class="flex items-center gap-4">
-                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span> Kijelölt csengőhang szakasz</span>
-                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-ios-blue"></span> Lejátszási mutató</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span> Kijelölt szakasz (Kezdet & Vég)</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-ios-blue"></span> Lejátszófej</span>
               </div>
-              <span class="text-neutral-500">Húzd a szélét a kezdő/végpont finomhangolásához!</span>
+              <span class="text-neutral-500">Húzd a vonalakat vagy használd az alábbi csúszkákat!</span>
+            </div>
+
+            <!-- DUAL TOUCH SLIDERS FOR EASY IPHONE TRIMMING -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div class="bg-white/[0.03] p-3 rounded-2xl border border-white/10">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-bold text-brand-300 flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+                    <span>Kezdőpont (Start csúszka)</span>
+                  </span>
+                  <span id="sliderStartTimeVal" class="text-xs font-mono font-bold text-white">00:00.0</span>
+                </div>
+                <input type="range" id="startSlider" min="0" max="60" step="0.1" value="0" class="w-full accent-brand-500 h-2 bg-neutral-800 rounded-lg cursor-pointer">
+              </div>
+
+              <div class="bg-white/[0.03] p-3 rounded-2xl border border-white/10">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-xs font-bold text-pink-300 flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                    <span>Végpont (End csúszka)</span>
+                  </span>
+                  <span id="sliderEndTimeVal" class="text-xs font-mono font-bold text-white">00:30.0</span>
+                </div>
+                <input type="range" id="endSlider" min="0" max="60" step="0.1" value="30" class="w-full accent-pink-500 h-2 bg-neutral-800 rounded-lg cursor-pointer">
+              </div>
             </div>
           </div>
 
