@@ -43,7 +43,7 @@
   </script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="style.css?v=2.4">
+  <link rel="stylesheet" href="style.css?v=2.5">
 </head>
 <body class="bg-neutral-950 text-neutral-100 min-h-screen selection:bg-brand-500/30 selection:text-brand-100 antialiased font-sans">
   
@@ -109,37 +109,85 @@
         <div id="tab-link" class="tab-content">
           <div class="glass-card p-6 sm:p-8 rounded-3xl border border-white/10 shadow-2xl space-y-4">
             
-            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-xs flex items-start gap-2.5">
-              <i data-lucide="sparkles" class="w-4 h-4 text-brand-400 shrink-0 mt-0.5"></i>
-              <div class="text-neutral-300">
-                <span class="font-bold text-white">Univerzális Zenei Támogatás:</span> Illessz be egy <strong>Spotify dal</strong>, <strong>YouTube / YouTube Music videó</strong> vagy <strong>Apple Music</strong> linket! A rendszer automatikusan kinyeri a dal metaadatait és az audió adatfolyamot, majd betölti a vágóba.
-              </div>
+            <div class="p-3.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-sm flex items-center gap-2.5">
+              <i data-lucide="link-2" class="w-4 h-4 text-brand-400 shrink-0"></i>
+              <span class="font-medium text-white">Másolj be bármilyen zenére mutató linket</span>
             </div>
 
-            <label class="text-sm font-semibold text-neutral-200 flex items-center gap-2">
-              <i data-lucide="link-2" class="w-4 h-4 text-brand-400"></i>
-              <span>Másold be a zenei linket:</span>
-            </label>
-
-            <form id="urlForm" class="flex flex-col sm:flex-row items-center gap-2.5">
-              <button type="button" id="clearUrlBtn" class="p-3.5 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-neutral-400 hover:text-white border border-white/15 transition-all flex items-center justify-center shrink-0 w-full sm:w-auto" title="Link mező törlése">
-                <i data-lucide="x" class="w-5 h-5"></i>
-              </button>
-              <div class="relative flex-1 w-full">
-                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
-                  <i data-lucide="disc" class="w-5 h-5"></i>
+            <form id="urlForm" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <div class="flex items-center gap-2 flex-1">
+                <button type="button" id="clearUrlBtn" class="w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-neutral-400 hover:text-white border border-white/15 transition-all flex items-center justify-center shrink-0" title="Link mező törlése">
+                  <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <div class="relative flex-1">
+                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
+                    <i data-lucide="disc" class="w-5 h-5"></i>
+                  </div>
+                  <input type="text" id="urlInput" placeholder="pl. Spotify, YouTube vagy Apple Music link..." class="w-full h-12 pl-11 pr-4 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-white placeholder-neutral-500 outline-none transition-all">
                 </div>
-                <input type="text" id="urlInput" placeholder="pl. https://open.spotify.com/track/... vagy YouTube / Apple Music link" class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-black/40 border border-white/15 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 text-sm text-white placeholder-neutral-500 outline-none transition-all">
               </div>
-              <button type="submit" id="urlSubmitBtn" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 active:scale-95 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition-all shrink-0">
+              <button type="submit" id="urlSubmitBtn" class="w-full sm:w-auto h-12 px-6 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 active:scale-95 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-600/30 transition-all shrink-0">
                 <i data-lucide="download" class="w-4 h-4"></i>
                 <span>Zene Betöltése</span>
               </button>
             </form>
-            <p class="text-xs text-neutral-400 flex items-center gap-1.5">
-              <i data-lucide="sparkles" class="w-3.5 h-3.5 text-neutral-500"></i>
-              <span>Tipp: Automatikusan kinyeri a dal metaadatait és a legmagasabb minőségű audiót készíti elő vágásra.</span>
-            </p>
+
+            <!-- IPHONE BEÁLLÍTÁSI ÚTMUTATÓ (INLINE) -->
+            <div id="inlineGuideSection" class="pt-4 border-t border-white/10 space-y-3.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2 text-sm font-bold text-white">
+                  <i data-lucide="smartphone" class="w-4 h-4 text-brand-400"></i>
+                  <span>Hogyan állítsd be az iPhone-odon?</span>
+                </div>
+                <span class="text-xs text-emerald-400 font-medium bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">Azonnali aktiválás .m4r</span>
+              </div>
+
+              <div class="p-3.5 rounded-2xl bg-gradient-to-r from-brand-600/20 via-purple-600/20 to-pink-600/20 border border-brand-500/30 text-xs text-brand-200">
+                ✨ <strong>Azonnali beállítás iPhone-on:</strong> Nem szükséges semmilyen extra program vagy számítógép! A csengőhang letöltése után közvetlenül az iPhone rendszer menüjéből aktiválhatod.
+              </div>
+
+              <ol class="space-y-2.5 text-xs sm:text-sm text-neutral-300">
+                <li class="flex items-start gap-3 bg-white/[0.03] p-3.5 rounded-2xl border border-white/5">
+                  <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+                  <div>
+                    <strong class="text-white text-xs sm:text-sm">Nyisd meg Safariban & Másold ki a zene linkjét:</strong>
+                    <p class="text-neutral-400 text-xs mt-0.5">Nyisd meg a weboldalt az iPhone <strong>Safari</strong> böngészőjében. A zenei alkalmazásodból (Spotify, YouTube, Apple Music) a <strong class="text-white">Megosztás</strong> gombbal másold ki a választott zene linkjét, majd illeszd be a fenti zenei link mezőbe.</p>
+                  </div>
+                </li>
+
+                <li class="flex items-start gap-3 bg-white/[0.03] p-3.5 rounded-2xl border border-white/5">
+                  <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+                  <div>
+                    <strong class="text-white text-xs sm:text-sm">Gyors letöltés vagy egyedi módosítások:</strong>
+                    <p class="text-neutral-400 text-xs mt-0.5">A zene betöltése után a gyors átalakítással a <strong class="text-emerald-400">„Csengőhang letöltése (30sec refrén)”</strong> gombra kattintva már le is tölthető a kész csengőhang, vagy az <strong class="text-white">„Egyedi beállítások”</strong> alatt további módosításokat (vágási pontok, hangerő, loop, effektek) is végezhetsz.</p>
+                  </div>
+                </li>
+
+                <li class="flex items-start gap-3 bg-white/[0.03] p-3.5 rounded-2xl border border-brand-500/30 shadow-lg shadow-brand-500/5">
+                  <span class="w-6 h-6 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+                  <div>
+                    <strong class="text-white text-xs sm:text-sm">Kattints a „Továbbiak...” lehetőségre:</strong>
+                    <p class="text-neutral-300 text-xs mt-0.5">A csengőhang letöltése után kattints a <strong class="text-brand-300 font-bold">Továbbiak...</strong> lehetőségre (a letöltési értesítőben vagy a fájl megosztási lapján).</p>
+                  </div>
+                </li>
+
+                <li class="flex items-start gap-3 bg-white/[0.03] p-3.5 rounded-2xl border border-pink-500/30 shadow-lg shadow-pink-500/5">
+                  <span class="w-6 h-6 rounded-full bg-pink-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">4</span>
+                  <div>
+                    <strong class="text-white text-xs sm:text-sm">Válaszd a „Használat csengőhangként” opciót:</strong>
+                    <p class="text-neutral-300 text-xs mt-0.5">Ezután az iPhone menüjében kattints a <strong class="text-emerald-400 font-bold">Használat csengőhangként</strong> opcióra (Standard csengőhang vagy SMS-hang hozzárendelése).</p>
+                  </div>
+                </li>
+
+                <li class="flex items-start gap-3 bg-emerald-500/10 p-3.5 rounded-2xl border border-emerald-500/20">
+                  <span class="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shrink-0 mt-0.5">✓</span>
+                  <div>
+                    <strong class="text-emerald-300 text-xs sm:text-sm">Kész! A csengőhang azonnal beállítva:</strong>
+                    <p class="text-neutral-400 text-xs mt-0.5">Az új csengőhang azonnal aktív, és megjelenik a <em>Beállítások ➔ Hangok és haptika ➔ Csengőhang</em> menü legtetején is.</p>
+                  </div>
+                </li>
+              </ol>
+            </div>
           </div>
         </div>
 
@@ -488,7 +536,7 @@
       </section>
 
       <!-- FEATURE CARDS / TRUST BADGES -->
-      <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+      <section class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
         
         <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2">
           <div class="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400">
@@ -507,16 +555,6 @@
           <h4 class="text-sm font-bold text-white">Minden Forrás Támogatva</h4>
           <p class="text-xs text-neutral-400 leading-relaxed">
             Másolj be Spotify dalt, YouTube videót, Apple Music linket, vagy húzd be a saját MP3/WAV/FLAC fájlodat.
-          </p>
-        </div>
-
-        <div class="glass-card p-5 rounded-2xl border border-white/5 space-y-2">
-          <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-            <i data-lucide="shield-check" class="w-5 h-5"></i>
-          </div>
-          <h4 class="text-sm font-bold text-white">100% Ingyenes & Korlátlan</h4>
-          <p class="text-xs text-neutral-400 leading-relaxed">
-            Nincs vízjel, nincs regisztráció. Végtelenített loop előnézet és hangerő-erősítés közvetlenül a böngészőben.
           </p>
         </div>
 
@@ -612,8 +650,8 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-  <script src="lame.min.js?v=2.4"></script>
-  <script src="alac.min.js?v=2.4"></script>
-  <script src="app.js?v=2.4"></script>
+  <script src="lame.min.js?v=2.5"></script>
+  <script src="alac.min.js?v=2.5"></script>
+  <script src="app.js?v=2.5"></script>
 </body>
 </html>
