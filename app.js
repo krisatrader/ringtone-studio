@@ -298,15 +298,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // iPhone 40s limitation check
-    if (selectedDur <= 40.0) {
+    // iPhone 30s official limitation check (Apple strictly enforces <= 30s for ringtones)
+    if (selectedDur <= 30.0) {
       selectedDurationVal.className = 'text-2xl font-mono font-black text-brand-400';
       durationStatusBadge.className = 'mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1';
-      durationStatusBadge.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i><span>Tökéletes méret (Max 40 mp)</span>`;
+      durationStatusBadge.innerHTML = `<i data-lucide="check" class="w-3 h-3"></i><span>Tökéletes méret (Max 30 mp - Apple szabvány)</span>`;
     } else {
       selectedDurationVal.className = 'text-2xl font-mono font-black text-rose-400';
       durationStatusBadge.className = 'mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1';
-      durationStatusBadge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i><span>Túl hosszú! (Max 40 mp engedett)</span>`;
+      durationStatusBadge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3"></i><span>Túl hosszú! (Max 30 mp engedélyezett az iPhone-on)</span>`;
     }
 
     if (window.lucide) window.lucide.createIcons();
@@ -1578,58 +1578,63 @@ document.addEventListener('DOMContentLoaded', () => {
     return await offlineCtx.startRendering();
   }
 
-  function audioBufferToWavBlob(buffer) {
-    const numChannels = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const format = 1; // PCM
-    const bitDepth = 16;
-    const bytesPerSample = bitDepth / 8;
-    const blockAlign = numChannels * bytesPerSample;
+  // --- CLIENT-SIDE GENUINE AUDIO ENCODERS (M4R / ALAC & MP3) ---
 
-    const length = buffer.length;
-    const dataSize = length * blockAlign;
-    const headerSize = 44;
-    const totalSize = headerSize + dataSize;
+  // Encode AudioBuffer to genuine Apple MPEG-4 ALAC (.m4r) container
+  async function encodeBufferToM4R(buffer) {
+    if (typeof window.encodeAlac === 'function') {
+      const sampleRate = buffer.sampleRate;
+      const numChannels = Math.min(2, buffer.numberOfChannels);
+      const enc = await window.encodeAlac({
+        sampleRate,
+        channels: numChannels,
+        bitDepth: 16
+      });
+      const left = buffer.getChannelData(0);
+      const right = numChannels > 1 ? buffer.getChannelData(1) : left;
+      enc.encode([left, right]);
+      const m4aBytes = await enc.flush();
+      return new Blob([m4aBytes], { type: 'audio/mp4' });
+    }
+    // Fallback to MP3 if ALAC library is not loaded
+    return encodeBufferToMP3(buffer);
+  }
 
-    const arrayBuffer = new ArrayBuffer(totalSize);
-    const view = new DataView(arrayBuffer);
+  // Encode AudioBuffer to genuine standard MPEG-1 Layer 3 (.mp3)
+  function encodeBufferToMP3(buffer) {
+    if (window.lamejs && window.lamejs.Mp3Encoder) {
+      const sampleRate = buffer.sampleRate;
+      const numChannels = Math.min(2, buffer.numberOfChannels);
+      const mp3Encoder = new window.lamejs.Mp3Encoder(numChannels, sampleRate, 192);
 
-    function writeString(offset, str) {
-      for (let i = 0; i < str.length; i++) {
-        view.setUint8(offset + i, str.charCodeAt(i));
+      const length = buffer.length;
+      const leftChannel = buffer.getChannelData(0);
+      const rightChannel = numChannels > 1 ? buffer.getChannelData(1) : leftChannel;
+
+      const leftI16 = new Int16Array(length);
+      const rightI16 = new Int16Array(length);
+
+      for (let i = 0; i < length; i++) {
+        let l = Math.max(-1, Math.min(1, leftChannel[i]));
+        let r = Math.max(-1, Math.min(1, rightChannel[i]));
+        leftI16[i] = l < 0 ? l * 0x8000 : l * 0x7FFF;
+        rightI16[i] = r < 0 ? r * 0x8000 : r * 0x7FFF;
       }
-    }
 
-    writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(8, 'WAVE');
-    writeString(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, format, true);
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, bitDepth, true);
-    writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    let offset = 44;
-    const channels = [];
-    for (let c = 0; c < numChannels; c++) {
-      channels.push(buffer.getChannelData(c));
-    }
-
-    for (let i = 0; i < length; i++) {
-      for (let c = 0; c < numChannels; c++) {
-        let sample = channels[c][i];
-        sample = Math.max(-1, Math.min(1, sample));
-        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-        offset += 2;
+      const mp3Data = [];
+      const blockSize = 1152;
+      for (let i = 0; i < length; i += blockSize) {
+        const lChunk = leftI16.subarray(i, i + blockSize);
+        const rChunk = rightI16.subarray(i, i + blockSize);
+        const buf = mp3Encoder.encodeBuffer(lChunk, rChunk);
+        if (buf.length > 0) mp3Data.push(buf);
       }
-    }
+      const endBuf = mp3Encoder.flush();
+      if (endBuf.length > 0) mp3Data.push(endBuf);
 
-    return new Blob([view], { type: format === 'mp3' ? 'audio/mpeg' : 'audio/mp4' });
+      return new Blob(mp3Data, { type: 'audio/mpeg' });
+    }
+    throw new Error('Az MP3 kódoló nem található a böngészőben.');
   }
 
   // --- CONVERT & DOWNLOAD BUTTON ---
@@ -1639,16 +1644,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const duration = state.endTime - state.startTime;
-    if (state.format === 'm4r' && duration > 40.0) {
-      showToast('Figyelem: az iPhone csengőhangok maximum 40 másodpercesek lehetnek! Kérjük rövidítsd le a kiválasztást.', 'error');
-      return;
+    // Apple strictly enforces maximum 30 seconds for custom ringtones
+    const rawDur = state.endTime - state.startTime;
+    if (rawDur > 30.0) {
+      state.endTime = Math.min(state.audioBuffer.duration, state.startTime + 29.9);
+      updateTimingDisplay(true);
+      showToast('Az iPhone csengőhang hossza automatikusan 29.9 másodpercre lett állítva (Apple maximum 30 mp szabvány)!', 'info');
     }
+
+    const duration = Math.min(29.9, Math.max(1.0, state.endTime - state.startTime));
 
     convertDownloadBtn.disabled = true;
     convertDownloadBtn.innerHTML = `
       <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-      <span>Konvertálás és kódolás folyamatban...</span>
+      <span>Kódolás és csengőhang készítése...</span>
     `;
 
     try {
@@ -1671,7 +1680,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
           id: state.currentTrack.id,
           start: state.startTime,
-          end: state.endTime,
+          end: state.startTime + duration,
           fadeIn: state.fadeIn,
           fadeOut: state.fadeOut,
           volume: state.volume,
@@ -1716,22 +1725,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
       } else {
         // Standalone Client-side Browser Render & Download (GitHub Pages)
-        showToast('Audió renderelése és csengőhang elkészítése...', 'info');
+        showToast('Audió renderelése és csengőhang kódolása...', 'info');
 
         const renderedBuffer = await renderTrimmedOfflineBuffer(
           state.audioBuffer,
           state.startTime,
-          state.endTime,
+          state.startTime + duration,
           state.fadeIn,
           state.fadeOut,
           state.volume
         );
 
+        let finalBlob = null;
         const targetExt = state.format === 'm4r' ? 'm4r' : 'mp3';
         const fileName = `${sanitizedTitle}.${targetExt}`;
 
-        // Instant synchronous audio blob generation (executes in ~5ms)
-        const finalBlob = audioBufferToWavBlob(renderedBuffer, state.format);
+        if (state.format === 'm4r') {
+          // Genuine Apple MPEG-4 (.m4r) container
+          finalBlob = await encodeBufferToM4R(renderedBuffer);
+        } else {
+          // Genuine MPEG-1 Layer 3 (.mp3)
+          finalBlob = encodeBufferToMP3(renderedBuffer);
+        }
 
         const downloadUrl = URL.createObjectURL(finalBlob);
         const a = document.createElement('a');
@@ -1745,7 +1760,7 @@ document.addEventListener('DOMContentLoaded', () => {
           URL.revokeObjectURL(downloadUrl);
         }, 3000);
 
-        showToast(`Csengőhang elkészült (${duration.toFixed(1)}s)! Letöltve mint ${fileName}`, 'success');
+        showToast(`Csengőhang elkészült (${duration.toFixed(1)}s, ${targetExt.toUpperCase()})! Letöltve mint ${fileName}`, 'success');
       }
 
       // Show reminder for iPhone setup
@@ -1764,6 +1779,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.lucide) window.lucide.createIcons();
     }
   });
+
 
   // --- RESET BUTTON ---
   resetTrackBtn.addEventListener('click', () => {
