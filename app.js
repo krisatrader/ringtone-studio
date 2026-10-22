@@ -1795,9 +1795,16 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Válassz egy másik dalt a folytatáshoz.', 'info');
   });
 
-  // --- GUIDE MODAL HANDLERS ---
+  // --- GUIDE MODAL & SCROLL HANDLERS ---
   guideBtn.addEventListener('click', () => {
-    guideModal.classList.remove('hidden');
+    const inlineGuide = document.getElementById('inlineGuideSection');
+    if (inlineGuide) {
+      inlineGuide.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      inlineGuide.classList.add('ring-2', 'ring-brand-500/50');
+      setTimeout(() => inlineGuide.classList.remove('ring-2', 'ring-brand-500/50'), 1500);
+    } else {
+      guideModal.classList.remove('hidden');
+    }
   });
 
   closeGuideBtn.addEventListener('click', () => {
