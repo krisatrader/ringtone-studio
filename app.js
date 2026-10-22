@@ -1769,7 +1769,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Show reminder for iPhone setup
       setTimeout(() => {
-        showToast('Tipp: A letöltés után kattints a „Továbbiak...” lehetőségre, majd a „Használat csengőhangként” opcióra!', 'info');
+        showToast('Tipp: A letöltés után kattints a csengőhangra, majd válaszd a „Használat csengőhangként” opciót!', 'info');
       }, 1500);
 
     } catch (err) {
@@ -1795,16 +1795,16 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Válassz egy másik dalt a folytatáshoz.', 'info');
   });
 
-  // --- GUIDE MODAL & SCROLL HANDLERS ---
-  guideBtn.addEventListener('click', () => {
-    const inlineGuide = document.getElementById('inlineGuideSection');
-    if (inlineGuide) {
-      inlineGuide.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      inlineGuide.classList.add('ring-2', 'ring-brand-500/50');
-      setTimeout(() => inlineGuide.classList.remove('ring-2', 'ring-brand-500/50'), 1500);
-    } else {
+  // --- GUIDE MODAL HANDLERS ---
+  const inlineGuideBtn = document.getElementById('inlineGuideBtn');
+  if (inlineGuideBtn) {
+    inlineGuideBtn.addEventListener('click', () => {
       guideModal.classList.remove('hidden');
-    }
+    });
+  }
+
+  guideBtn.addEventListener('click', () => {
+    guideModal.classList.remove('hidden');
   });
 
   closeGuideBtn.addEventListener('click', () => {
