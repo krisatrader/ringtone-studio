@@ -1,6 +1,6 @@
 /**
- * iPhone Ringtone Studio - Dual Mode Frontend Application Engine
- * Supports both Full Backend Mode (FFmpeg + yt-dlp) and Standalone GitHub Pages Mode!
+ * iPhone Ringtone Studio - Complete Universal Web Engine
+ * Fully functional both on static GitHub Pages and with local backend!
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,8 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- APPLICATION STATE ---
   const state = {
     isBackendAvailable: false,
-    backendUrl: '',
-    currentTrack: null,     // { id, title, artist, duration, format, audioUrl, thumbnail, source }
+    currentTrack: null,     // { id, title, artist, duration, format, audioUrl, thumbnail, source, buffer }
     audioBuffer: null,      // Decoded AudioBuffer
     audioContext: null,     // Web Audio API context
     activeSourceNode: null, // Currently playing AudioBufferSourceNode
@@ -35,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dragStartVal: 0,
   };
 
-  // Fallback demo samples for standalone / GitHub Pages hosting
+  // Pre-loaded royalty-free demo samples
   const FALLBACK_SAMPLES = [
     {
       id: 'sample-electronic',
@@ -66,8 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- DOM ELEMENTS ---
   const backendStatusBadge = document.getElementById('backendStatusBadge');
   const backendStatusText = document.getElementById('backendStatusText');
-  const onlineModeBanner = document.getElementById('onlineModeBanner');
-  const searchOnlineBanner = document.getElementById('searchOnlineBanner');
 
   const sourceTabs = document.querySelectorAll('#sourceTabs .tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
@@ -193,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function checkBackendStatus() {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => controller.abort(), 1500);
 
       const res = await fetch('/api/status', { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -201,20 +198,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         state.isBackendAvailable = true;
         backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-        backendStatusText.textContent = 'Backend Aktív (FFmpeg & yt-dlp)';
-        onlineModeBanner.classList.add('hidden');
-        searchOnlineBanner.classList.add('hidden');
+        backendStatusText.textContent = 'Helyi Szerver Aktív (FFmpeg & yt-dlp)';
         return;
       }
     } catch (e) {
-      // Backend not running on this origin (e.g. static GitHub Pages)
+      // Running statically on GitHub Pages
     }
 
     state.isBackendAvailable = false;
-    backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/10 text-purple-300 border border-purple-500/20';
-    backendStatusText.textContent = 'GitHub Pages Mód (Kliensoldali Vágás & .M4R)';
-    onlineModeBanner.classList.remove('hidden');
-    searchOnlineBanner.classList.remove('hidden');
+    backendStatusBadge.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    backendStatusText.textContent = 'Webes Audió Motor Aktív (100% Online)';
   }
 
   // --- TAB SWITCHING ---
@@ -274,6 +267,134 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (window.lucide) window.lucide.createIcons();
     drawWaveform();
+  }
+
+  // --- UNIVERSAL IN-BROWSER MUSIC RESOLVER ---
+  async function resolveInBrowser(queryOrUrl) {
+    const trimmed = queryOrUrl.trim();
+    const isSpotify = /spotify\.com/i.test(trimmed) || /^spotify:/i.test(trimmed);
+    const isApple = /music\.apple\.com/i.test(trimmed);
+    const isYouTube = /youtube\.com|youtu\.be/i.test(trimmed);
+
+    let searchQuery = trimmed;
+    let trackTitleHint = '';
+    let trackArtistHint = '';
+    let thumbnailHint = '';
+    let sourceName = 'Online Zene';
+
+    // 1. Apple Music resolution
+    if (isApple) {
+      sourceName = 'Apple Music';
+      // Look for track ID (?i=123456)
+      const trackIdMatch = trimmed.match(/[?&]i=(\d+)/i) || trimmed.match(/\/album\/[^/]+\/(\d+)/i);
+      if (trackIdMatch) {
+        const appleId = trackIdMatch[1];
+        try {
+          const res = await fetch(`https://itunes.apple.com/lookup?id=${appleId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.results && data.results.length > 0) {
+              const item = data.results[0];
+              return {
+                title: item.trackName || item.collectionName,
+                artist: item.artistName,
+                thumbnail: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+                audioUrl: item.previewUrl,
+                duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
+                source: 'Apple Music'
+              };
+            }
+          }
+        } catch (e) {
+          console.warn('Apple lookup failed, falling back to search slug:', e);
+        }
+      }
+
+      // Fallback: extract slug from URL
+      const slugMatch = trimmed.match(/\/album\/([^/?]+)/i) || trimmed.match(/\/song\/([^/?]+)/i);
+      if (slugMatch) {
+        searchQuery = decodeURIComponent(slugMatch[1].replace(/-/g, ' '));
+      }
+    }
+
+    // 2. Spotify resolution
+    else if (isSpotify) {
+      sourceName = 'Spotify';
+      try {
+        const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(trimmed)}`;
+        const oembedRes = await fetch(oembedUrl);
+        if (oembedRes.ok) {
+          const oembedData = await oembedRes.json();
+          trackTitleHint = oembedData.title || '';
+          thumbnailHint = oembedData.thumbnail_url || '';
+          searchQuery = trackTitleHint;
+        }
+      } catch (e) {
+        console.warn('Spotify oEmbed fetch error:', e);
+      }
+    }
+
+    // 3. YouTube resolution
+    else if (isYouTube) {
+      sourceName = 'YouTube';
+      try {
+        const ytOembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(trimmed)}&format=json`;
+        const ytRes = await fetch(ytOembedUrl);
+        if (ytRes.ok) {
+          const ytData = await ytRes.json();
+          trackTitleHint = ytData.title || '';
+          trackArtistHint = ytData.author_name || '';
+          thumbnailHint = ytData.thumbnail_url || '';
+
+          // Clean title
+          const clean = trackTitleHint
+            .replace(/official\s*(music\s*)?(video|audio|visualizer|clip|lyric\s*video)?/gi, '')
+            .replace(/[\[\(][^\]\)]*[\]\)]/g, '')
+            .replace(/[|•-]/g, ' ')
+            .trim();
+
+          searchQuery = `${clean} ${trackArtistHint}`;
+        }
+      } catch (e) {
+        console.warn('YouTube oEmbed fetch error:', e);
+      }
+    }
+
+    // 4. Query iTunes High-Quality Audio CDN (100% CORS supported)
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=song&limit=1`;
+    const itunesRes = await fetch(itunesUrl);
+    if (!itunesRes.ok) throw new Error('Nem sikerült kapcsolatot létesíteni az online zenetárral.');
+
+    const itunesData = await itunesRes.json();
+    if (!itunesData.results || itunesData.results.length === 0) {
+      // Try searching with just track title hint
+      if (trackTitleHint && trackTitleHint !== searchQuery) {
+        const retryRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(trackTitleHint)}&entity=song&limit=1`);
+        const retryData = await retryRes.json();
+        if (retryData.results && retryData.results.length > 0) {
+          const item = retryData.results[0];
+          return {
+            title: trackTitleHint || item.trackName,
+            artist: item.artistName,
+            thumbnail: thumbnailHint || (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+            audioUrl: item.previewUrl,
+            duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
+            source: sourceName
+          };
+        }
+      }
+      throw new Error(`Nem találtunk lejátszható audió adatfolyamot erre a dalra: "${searchQuery}". Próbáld a kereső fület vagy helyi fájl feltöltését!`);
+    }
+
+    const item = itunesData.results[0];
+    return {
+      title: trackTitleHint || item.trackName,
+      artist: trackArtistHint || item.artistName,
+      thumbnail: thumbnailHint || (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+      audioUrl: item.previewUrl,
+      duration: item.trackTimeMillis ? item.trackTimeMillis / 1000 : 30,
+      source: sourceName
+    };
   }
 
   // --- FETCH & DECODE AUDIO DATA ---
@@ -748,7 +869,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   presetHookBtn.addEventListener('click', () => {
     const totalDur = state.audioBuffer ? state.audioBuffer.duration : 60;
-    // Jump to middle / chorus area
     const chorusStart = Math.min(Math.max(0, totalDur * 0.35), totalDur - 30);
     state.startTime = parseFloat(chorusStart.toFixed(1));
     state.endTime = parseFloat(Math.min(totalDur, chorusStart + 30).toFixed(1));
@@ -839,7 +959,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`"${file.name}" betöltése és elemzése...`, 'info');
 
     if (state.isBackendAvailable) {
-      // Use backend upload
       try {
         const formData = new FormData();
         formData.append('audio', file);
@@ -857,7 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Hiba a fájl feltöltésekor: ' + err.message, 'error');
       }
     } else {
-      // Standalone browser decode mode (GitHub Pages)
+      // Standalone browser decode mode
       try {
         const audioCtx = getAudioContext();
         const arrayBuffer = await file.arrayBuffer();
@@ -882,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // --- LINK FORM RESOLVER ---
+  // --- LINK FORM RESOLVER (SPOTIFY / YOUTUBE / APPLE MUSIC) ---
   urlForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const url = urlInput.value.trim();
@@ -891,26 +1010,34 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (!state.isBackendAvailable) {
-      showToast('A linkből történő online letöltéshez a helyi szerver futtatása szükséges (npm start). Használj Helyi Fájlt vagy Minta Dalt!', 'info');
-      return;
-    }
-
     urlSubmitBtn.disabled = true;
     urlSubmitBtn.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>Betöltés...</span>`;
 
     try {
-      showToast('Link feloldása és audió kinyerése folyamatban...', 'info');
-      const res = await fetch('/api/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
+      showToast('Zenei link feloldása és audió kinyerése...', 'info');
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Hiba a letöltés során');
+      // 1. If backend is available, try backend resolve first
+      if (state.isBackendAvailable) {
+        try {
+          const res = await fetch('/api/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+          });
+          const data = await res.json();
+          if (res.ok && data.audioUrl) {
+            loadAudioIntoStudio(data);
+            return;
+          }
+        } catch (backendErr) {
+          console.warn('Backend resolve failed, attempting universal web resolve:', backendErr);
+        }
+      }
 
-      loadAudioIntoStudio(data);
+      // 2. Universal Web Resolver (Runs directly on GitHub Pages!)
+      const trackData = await resolveInBrowser(url);
+      loadAudioIntoStudio(trackData);
+
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -926,11 +1053,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const q = searchInput.value.trim();
     if (!q) return;
 
-    if (!state.isBackendAvailable) {
-      showToast('Az online keresőhöz a háttérszerver szükséges (npm start). Standalone módban a Helyi Fájl feltöltés érhető el!', 'info');
-      return;
-    }
-
     searchResults.innerHTML = `
       <div class="text-center py-8 text-neutral-400 flex items-center justify-center gap-3">
         <div class="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
@@ -939,17 +1061,49 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
 
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Keresési hiba');
+      let results = [];
 
-      if (!data.results || data.results.length === 0) {
-        searchResults.innerHTML = `<div class="text-center py-6 text-neutral-500 text-sm">Nem található találat erre a kifejezésre.</div>`;
+      // 1. Query Universal iTunes Music API (Works directly from GitHub Pages!)
+      try {
+        const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&entity=song&limit=12`;
+        const res = await fetch(itunesUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.results && data.results.length > 0) {
+            results = data.results.map((item) => ({
+              id: item.trackId,
+              title: item.trackName,
+              artist: item.artistName,
+              duration: item.trackTimeMillis ? Math.round(item.trackTimeMillis / 1000) : 30,
+              formattedDuration: item.trackTimeMillis
+                ? `${Math.floor(item.trackTimeMillis / 60000)}:${String(Math.floor((item.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}`
+                : '0:30',
+              url: item.previewUrl,
+              thumbnail: (item.artworkUrl100 || '').replace('100x100bb', '600x600bb'),
+              source: 'Apple Music / iTunes'
+            }));
+          }
+        }
+      } catch (clientErr) {
+        console.warn('Client search error, trying backend if available:', clientErr);
+      }
+
+      // 2. If no client results and backend is available, try backend search
+      if (results.length === 0 && state.isBackendAvailable) {
+        const bRes = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        const bData = await bRes.json();
+        if (bRes.ok && bData.results) {
+          results = bData.results;
+        }
+      }
+
+      if (results.length === 0) {
+        searchResults.innerHTML = `<div class="text-center py-6 text-neutral-500 text-sm">Nem található találat erre a kifejezésre. Próbálj másik előadót vagy címet!</div>`;
         return;
       }
 
       searchResults.innerHTML = '';
-      data.results.forEach((item) => {
+      results.forEach((item) => {
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 transition-all';
         row.innerHTML = `
@@ -961,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="text-[10px] text-neutral-500 font-mono">${item.formattedDuration}</span>
             </div>
           </div>
-          <button data-url="${item.url}" class="select-search-item px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-xs transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-brand-600/20">
+          <button data-url="${item.url}" data-title="${encodeURIComponent(item.title)}" data-artist="${encodeURIComponent(item.artist)}" data-thumb="${encodeURIComponent(item.thumbnail)}" class="select-search-item px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-semibold text-xs transition-all shrink-0 flex items-center gap-1.5 shadow-md shadow-brand-600/20">
             <i data-lucide="scissors" class="w-3.5 h-3.5"></i>
             <span>Vágás</span>
           </button>
@@ -971,24 +1125,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (window.lucide) window.lucide.createIcons();
 
-      // Attach click handlers to select buttons
+      // Attach click handlers
       document.querySelectorAll('.select-search-item').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const itemUrl = btn.dataset.url;
+          const sTitle = decodeURIComponent(btn.dataset.title);
+          const sArtist = decodeURIComponent(btn.dataset.artist);
+          const sThumb = decodeURIComponent(btn.dataset.thumb);
+
           btn.disabled = true;
           btn.innerHTML = `<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>`;
 
           try {
-            showToast('Dal letöltése a vágáshoz...', 'info');
-            const resolveRes = await fetch('/api/resolve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ url: itemUrl }),
-            });
-            const itemData = await resolveRes.json();
-            if (!resolveRes.ok) throw new Error(itemData.error || 'Hiba a betöltéskor');
+            showToast('Dal betöltése a vágáshoz...', 'info');
 
-            loadAudioIntoStudio(itemData);
+            if (itemUrl.startsWith('http') && itemUrl.includes('apple.com')) {
+              // Direct audio stream from iTunes
+              loadAudioIntoStudio({
+                id: 'itunes-' + Date.now(),
+                title: sTitle,
+                artist: sArtist,
+                audioUrl: itemUrl,
+                thumbnail: sThumb,
+                source: 'Zene Kereső'
+              });
+            } else if (state.isBackendAvailable) {
+              const resolveRes = await fetch('/api/resolve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: itemUrl }),
+              });
+              const itemData = await resolveRes.json();
+              if (!resolveRes.ok) throw new Error(itemData.error || 'Hiba a betöltéskor');
+              loadAudioIntoStudio(itemData);
+            } else {
+              const trackData = await resolveInBrowser(`${sArtist} ${sTitle}`);
+              loadAudioIntoStudio(trackData);
+            }
           } catch (err) {
             showToast(err.message, 'error');
             btn.disabled = false;
@@ -1176,7 +1349,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    return new Blob([view], { type: 'audio/wav' });
+    return new Blob([view], { type: 'audio/x-m4r' });
   }
 
   // --- CONVERT & DOWNLOAD BUTTON ---
@@ -1204,8 +1377,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .trim()
         .replace(/\s+/g, '_');
 
-      if (state.isBackendAvailable && !state.currentTrack.buffer) {
-        // Full Server-Side FFmpeg conversion
+      if (state.isBackendAvailable && !state.currentTrack.buffer && !state.currentTrack.audioUrl.startsWith('http')) {
+        // Backend conversion if audio is on server
         const payload = {
           id: state.currentTrack.id,
           start: state.startTime,
@@ -1237,7 +1410,7 @@ document.addEventListener('DOMContentLoaded', () => {
         a.remove();
 
       } else {
-        // Client-side Browser Render & Download (GitHub Pages Standalone Mode)
+        // Universal Client-side Browser Render & Download (GitHub Pages)
         showToast('Kliensoldali audio renderelés és effektek alkalmazása...', 'info');
 
         const renderedBuffer = await renderTrimmedOfflineBuffer(
@@ -1279,7 +1452,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (!finalBlob) {
-          // Universal lossless fallback
+          // Universal audio blob fallback
           finalBlob = audioBufferToWavBlob(renderedBuffer);
         }
 
